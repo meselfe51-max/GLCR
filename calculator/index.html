@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ماشین حساب قیمت روز دلار، یورو، طلا، سکه، نقره و ارز دیجیتال؛ مقدار را وارد کنید و ارزش آن را به تومان ببینید.">
+<title>ماشین حساب ارز، طلا و سکه | GLCR</title>
+<!--seo:start-->
+<link rel="icon" href="../images/favicon.svg" type="image/svg+xml">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://YOUR-DOMAIN.com/calculator/">
+<meta name="theme-color" content="#001421">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GLCR">
+<meta property="og:locale" content="fa_IR">
+<meta property="og:title" content="ماشین حساب ارز، طلا و سکه | GLCR">
+<meta property="og:description" content="ماشین حساب قیمت روز دلار، یورو، طلا، سکه، نقره و ارز دیجیتال؛ مقدار را وارد کنید و ارزش آن را به تومان ببینید.">
+<meta property="og:url" content="https://YOUR-DOMAIN.com/calculator/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ماشین حساب ارز، طلا و سکه | GLCR">
+<meta name="twitter:description" content="ماشین حساب قیمت روز دلار، یورو، طلا، سکه، نقره و ارز دیجیتال؛ مقدار را وارد کنید و ارزش آن را به تومان ببینید.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"GLCR","item":"https://YOUR-DOMAIN.com/"},{"@type":"ListItem","position":2,"name":"ماشین حساب","item":"https://YOUR-DOMAIN.com/calculator/"}]}</script>
+<!--seo:end-->
+<link rel="stylesheet" href="../styles/style.css">
+<link rel="stylesheet" href="../styles/calculator.css">
+</head>
+<body class="calc-page">
+
+  <div class="top-header">
+    <h2>نرخ های زنده ارز جهان <span>(GLCR)</span></h2>
+    <a href="../index.html">قیمت‌ها</a>
+  </div>
+
+  <div class="calc-hero">
+    <h1>ماشین حساب</h1>
+    <p>مقدار و نوع را انتخاب کن، ارزش روزش را به تومان ببین</p>
+  </div>
+
+  <main>
+    <div class="calc-card">
+
+      <div class="field">
+        <label for="amount">مقدار</label>
+        <div class="control with-suffix">
+          <input id="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="مثلاً ۵">
+          <span class="suffix" id="suffix">دلار</span>
+        </div>
+        <div class="field-error" id="error" role="alert"></div>
+      </div>
+
+      <div class="field">
+        <label for="asset">نوع ارز</label>
+        <div class="control">
+          <select id="asset"></select>
+        </div>
+        <div class="price-row">
+          <div class="price-main">
+            <span class="price-label" id="price-label">قیمت لحظه‌ای</span>
+            <span class="price-value" id="price-value">در حال دریافت...</span>
+          </div>
+          <div class="price-status" id="price-status" data-state="loading"></div>
+        </div>
+      </div>
+
+      <button type="button" class="calc-btn" id="calc-btn">محاسبه</button>
+
+      <div class="calc-result" id="result-box" hidden aria-live="polite">
+        <div class="res-label">ارزش به تومان</div>
+        <div class="res-value" id="res-value"></div>
+        <div class="res-note" id="res-note"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>قیمت‌ها لحظه‌ای از همان منبع صفحات دیگر سایت گرفته می‌شود.</p>
+    <p>تمامی حقوق این سایت متعلق به تیم GLCR است_2026 </p>
+  </footer>
+
+<!-- price-page.js برای هر صفحه این عنصرها را لازم دارد؛ اینجا فقط جای خالی‌اند و دیده نمی‌شوند -->
+<div hidden aria-hidden="true">
+  <span id="asset-title"></span><span id="asset-label"></span><span id="asset-price"></span>
+  <span id="live-status"></span><a id="details-link" href="#"></a>
+  <span id="page-title"></span><span id="page-description"></span>
+</div>
+
+<script src="../scripts/price-page.js"></script>
+<script>
+(function () {
+  var UNITS = {
+    dollar: 'دلار', euro: 'یورو', pound: 'پوند', dirham: 'درهم', lira: 'لیر',
+    gold18: 'گرم', mesghal: 'مثقال', coin: 'عدد', halfcoin: 'عدد', quartercoin: 'عدد', silver: 'گرم',
+    bitcoin: 'بیت‌کوین', ethereum: 'اتریوم', tether: 'تتر', bnb: 'بایننس‌کوین', xrp: 'ریپل'
+  };
+  var GROUPS = [
+    ['currency', 'ارزهای خارجی'],
+    ['metal', 'طلا، سکه و فلزات گران‌بها'],
+    ['crypto', 'ارزهای دیجیتال']
+  ];
+
+  var amountEl = document.getElementById('amount');
+  var selectEl = document.getElementById('asset');
+  var suffixEl = document.getElementById('suffix');
+  var errorEl = document.getElementById('error');
+  var priceLabelEl = document.getElementById('price-label');
+  var priceValueEl = document.getElementById('price-value');
+  var priceStatusEl = document.getElementById('price-status');
+  var btn = document.getElementById('calc-btn');
+  var boxEl = document.getElementById('result-box');
+  var resValueEl = document.getElementById('res-value');
+  var resNoteEl = document.getElementById('res-note');
+
+  var shown = false; // آیا نتیجه الان روی صفحه است؟
+
+  // ساخت لیست انتخاب ارز
+  GROUPS.forEach(function (g) {
+    var og = document.createElement('optgroup');
+    og.setAttribute('label', g[1]);
+    ORDER[g[0]].forEach(function (key) {
+      var op = document.createElement('option');
+      op.value = key;
+      op.textContent = ASSETS[key].name;
+      og.appendChild(op);
+    });
+    selectEl.appendChild(og);
+  });
+
+  // انتخاب اولیه (از آدرس مثل calculator/#silver، وگرنه دلار)
+  selectEl.value = 'dollar';
+  var hash = decodeURIComponent(location.hash.slice(1)).toLowerCase();
+  if (hash) {
+    Object.keys(ASSETS).forEach(function (k) {
+      if (k.toLowerCase() === hash || ASSETS[k].slug === hash) selectEl.value = k;
+    });
+  }
+
+  function statusInfo(a) {
+    if (a.status === 'live') return ['live', a.updatedAt ? 'بروزرسانی ' + a.updatedAt : 'زنده'];
+    if (a.status === 'cached') return ['cached', 'آخرین قیمت شناخته‌شده؛ در حال بروزرسانی'];
+    if (a.status === 'stale') return ['cached', 'بروزرسانی ممکن نشد؛ آخرین قیمت نمایش داده می‌شود'];
+    if (a.status === 'error') return ['error', 'اتصال برقرار نشد؛ دوباره تلاش می‌کنیم'];
+    return ['loading', 'در حال دریافت قیمت'];
+  }
+
+  function renderPrice() {
+    var key = selectEl.value;
+    var a = ASSETS[key];
+    var unit = UNITS[key] || 'واحد';
+    suffixEl.textContent = unit;
+    priceLabelEl.textContent = 'قیمت لحظه‌ای هر ' + unit;
+    if (a.current == null) {
+      priceValueEl.textContent = pendingText(a);
+    } else {
+      priceValueEl.innerHTML = formatNumber(a.current) + ' <small>تومان</small>';
+    }
+    var st = statusInfo(a);
+    priceStatusEl.setAttribute('data-state', st[0]);
+    priceStatusEl.textContent = st[1];
+  }
+
+  function setError(msg) {
+    errorEl.textContent = msg || '';
+    amountEl.setAttribute('aria-invalid', msg ? 'true' : 'false');
+  }
+
+  function calculate() {
+    var key = selectEl.value;
+    var a = ASSETS[key];
+    var raw = amountEl.value.trim();
+    var qty = parseLiveNumber(raw);
+
+    if (raw === '') { setError('مقدار را وارد کن'); hideResult(); amountEl.focus(); return; }
+    if (!isFinite(qty) || qty <= 0) { setError('یک عدد معتبر وارد کن'); hideResult(); amountEl.focus(); return; }
+    if (a.current == null) { setError('قیمت هنوز دریافت نشده؛ چند ثانیه بعد دوباره امتحان کن'); hideResult(); return; }
+
+    setError('');
+    resValueEl.textContent = formatNumber(qty * a.current) + ' تومان';
+    resNoteEl.textContent = toFa(qty.toLocaleString('en-US', { maximumFractionDigits: 4 })) + ' ' +
+      (UNITS[key] || '') + ' × ' + formatNumber(a.current) + ' تومان';
+    boxEl.hidden = false;
+    shown = true;
+  }
+
+  function hideResult() {
+    boxEl.hidden = true;
+    shown = false;
+  }
+
+  btn.addEventListener('click', calculate);
+  amountEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') calculate(); });
+  amountEl.addEventListener('input', function () { setError(''); hideResult(); });
+  selectEl.addEventListener('change', function () {
+    history.replaceState(null, '', '#' + ASSETS[selectEl.value].slug);
+    setError('');
+    hideResult();
+    renderPrice();
+  });
+
+  // هر بار که price-page.js قیمت‌ها را به‌روز می‌کند، قیمت و (اگر نتیجه روی صفحه است) نتیجه هم تازه شود
+  var baseRenderAll = renderAll;
+  renderAll = function () {
+    baseRenderAll();
+    renderPrice();
+    if (shown) calculate();
+  };
+
+  renderPrice();
+})();
+</script>
+</body>
+</html>

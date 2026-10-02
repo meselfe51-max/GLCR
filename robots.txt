@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /price-page-sample.html
+
+Sitemap: https://YOUR-DOMAIN.com/sitemap.xml

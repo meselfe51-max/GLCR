@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://YOUR-DOMAIN.com/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/calculator/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/dollar/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/euro/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/pound/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/dirham/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/lira/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/gold-18/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/mesghal/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/coin/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/half-coin/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/quarter-coin/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/silver/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/bitcoin/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/ethereum/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/tether/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/bnb/</loc></url>
+  <url><loc>https://YOUR-DOMAIN.com/currency/xrp/</loc></url>
+</urlset>
