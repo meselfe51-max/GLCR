@@ -374,3 +374,162 @@ footer {
     padding: 0;
   }
 }
+
+/* ---------- چرخش نرخ در هدر صفحه اصلی ---------- */
+.dollar-box .label,
+.dollar-box .dollar-price {
+  transition: opacity var(--header-fade, 700ms) ease-in-out,
+              transform var(--header-fade, 700ms) ease-in-out;
+}
+.dollar-box.is-switching .label,
+.dollar-box.is-switching .dollar-price {
+  opacity: 0;
+  transform: translateY(6px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dollar-box .label,
+  .dollar-box .dollar-price { transition: none; }
+}
+
+/* ---------- فاصله‌ی آخرین جدول تا فوتر ---------- */
+main .price-section:last-of-type {
+  margin-bottom: 72px;
+}
+@media (max-width: 600px) {
+  main .price-section:last-of-type {
+    margin-bottom: 56px;
+  }
+}
+
+/* ---------- نمودار با کلیک روی ردیف جدول ---------- */
+tbody tr[id] { cursor: pointer; }
+body.chart-open { overflow: hidden; }
+.chart-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 14, 40, 0.55);
+}
+.chart-overlay[hidden] { display: none; }
+.chart-panel {
+  width: 100%;
+  max-width: 560px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 18px 18px 22px;
+  background: #fff;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 20, 60, 0.25);
+}
+@media (min-width: 700px) {
+  .chart-overlay { align-items: center; }
+  .chart-panel { border-radius: 18px; padding: 24px; }
+}
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.chart-head h3 { margin: 0; font-size: 18px; color: #00254b; }
+.chart-price { margin-top: 4px; font-size: 22px; font-weight: 700; color: #111; }
+.chart-close {
+  width: 38px; height: 38px;
+  font-size: 24px; line-height: 1;
+  color: #475467; background: #f3f5f8;
+  border: 0; border-radius: 50%; cursor: pointer;
+}
+.chart-periods { display: flex; gap: 8px; margin: 16px 0 14px; }
+.chart-period {
+  flex: 1;
+  padding: 9px 0;
+  font: inherit; font-size: 14px;
+  color: #475467; background: #f3f5f8;
+  border: 1px solid #d8dee6; border-radius: 10px; cursor: pointer;
+}
+.chart-period[aria-pressed="true"] {
+  color: #fff; background: #00254b; border-color: #00254b; font-weight: 700;
+}
+.chart-plot { position: relative; height: 200px; margin: 0 0 6px; touch-action: pan-y; }
+.chart-plot svg { width: 100%; height: 100%; display: block; }
+.chart-axis {
+  position: absolute; left: 4px;
+  font-size: 11px; color: #667085;
+  background: rgba(255, 255, 255, 0.75); padding: 0 3px; border-radius: 3px;
+  pointer-events: none;
+}
+.chart-axis-max { top: 0; }
+.chart-axis-min { bottom: 0; }
+.chart-dot {
+  position: absolute; width: 11px; height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  border: 2px solid #fff; border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  pointer-events: none;
+}
+.chart-tip {
+  position: absolute; top: -6px;
+  transform: translate(-50%, -100%);
+  padding: 4px 9px; font-size: 12px; white-space: nowrap;
+  color: #fff; background: #00254b; border-radius: 8px;
+  pointer-events: none;
+}
+.chart-times { display: flex; justify-content: space-between; font-size: 12px; color: #667085; }
+.chart-empty {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 180px; padding: 0 12px;
+  text-align: center; line-height: 2; font-size: 14px; color: #667085;
+  background: #f7f9fb; border-radius: 12px;
+}
+.chart-stats { display: flex; gap: 8px; margin-top: 16px; }
+.chart-stat {
+  flex: 1; display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 8px; text-align: center;
+  background: #f7f9fb; border-radius: 10px;
+}
+.chart-stat span { font-size: 12px; color: #667085; }
+.chart-stat strong { font-size: 14px; }
+.chart-note { margin: 12px 0 0; font-size: 12px; color: #8a5a00; line-height: 1.8; }
+.chart-note:empty { display: none; }
+
+/* ---------- جدول‌ها روی گوشی: هر ردیف یک کارت دو خطی (بدون اسکرول افقی) ---------- */
+@media (max-width: 600px) {
+  .price-section table,
+  .price-section tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  .price-section thead {
+    display: none;
+  }
+  .price-section tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name price"
+      "pct chg";
+    align-items: center;
+    gap: 4px 14px;
+    padding: 12px 4px;
+    border-bottom: 1px solid #eceff3;
+  }
+  .price-section tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .price-section tbody td {
+    display: block;
+    padding: 0;
+    border: 0;
+    text-align: start;
+    white-space: nowrap;
+  }
+  .price-section tbody td:nth-child(1) { grid-area: name; font-weight: 700; font-size: 15px; }
+  .price-section tbody td:nth-child(2) { grid-area: pct; font-size: 13px; }
+  .price-section tbody td:nth-child(3) { grid-area: chg; justify-self: end; font-size: 13px; }
+  .price-section tbody td:nth-child(4) { grid-area: price; justify-self: end; font-weight: 700; font-size: 16px; }
+}
