@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 const OUT = 'data/history.json';
-const KEEP_SECONDS = 26 * 60 * 60;
+const KEEP_SECONDS = 26 * 60 * 60; // کمی بیشتر از ۲۴ ساعت
 const TIMEOUT_MS = 15000;
 
 const TGJU_URLS = [
@@ -14,8 +14,21 @@ const TGJU_URLS = [
 const TGJU_KEYS = {
   dollar: 'price_dollar_rl', euro: 'price_eur', pound: 'price_gbp', dirham: 'price_aed',
   lira: 'price_try', gold18: 'geram18', mesghal: 'mesghal', coin: 'sekee',
-  halfcoin: 'nim', quartercoin: 'rob', silver: 'silver_999'
+  halfcoin: 'nim', quartercoin: 'rob', silver: 'silver_999',
+  cad: 'price_cad', aud: 'price_aud', chf: 'price_chf', cny: 'price_cny', jpy: 'price_jpy',
+  rub: 'price_rub', sar: 'price_sar', kwd: 'price_kwd', iqd: 'price_iqd', inr: 'price_inr', afn: 'price_afn',
+  gold24: 'geram24', baharazadi: 'sekeb', gerami: 'gerami',
+  dogecoin: 'crypto-dogecoin-irr', solana: 'crypto-solana-irr', cardano: 'crypto-cardano-irr',
+  tron: 'crypto-tron-irr', litecoin: 'crypto-litecoin-irr', toncoin: 'crypto-toncoin-irr',
+  polkadot: 'crypto-polkadot-irr', chainlink: 'crypto-chainlink-irr', avalanche: 'crypto-avalanche-irr'
 };
+// قیمت این‌ها دلاری است و مثل سایت بدون تقسیم بر ۱۰ ذخیره می‌شود
+const TGJU_USD_KEYS = {
+  goldounce: 'ons', silverounce: 'silver', platinum: 'platinum', palladium: 'palladium',
+  brent: 'oil_brent', opec: 'oil_opec'
+};
+// ۱۰۰۰ شیبا = قیمت دلاری شیبا × قیمت تتر (ریال) × ۱۰۰۰ ÷ ۱۰
+const SHIBA = { usdKey: 'crypto-shiba-inu', rateKey: 'crypto-tether-irr', scale: 1000 };
 const NOBITEX_URL = 'https://apiv2.nobitex.ir/market/stats?dstCurrency=rls';
 const NOBITEX_KEYS = { bitcoin: 'btc', ethereum: 'eth', tether: 'usdt', bnb: 'bnb', xrp: 'xrp' };
 
@@ -57,6 +70,13 @@ if (tgju) {
     const rial = num(tgju.current[key] && tgju.current[key].p);
     if (rial > 0) prices[asset] = rial / 10;
   }
+  for (const [asset, key] of Object.entries(TGJU_USD_KEYS)) {
+    const usd = num(tgju.current[key] && tgju.current[key].p);
+    if (usd > 0) prices[asset] = usd;
+  }
+  const shibaUsd = num(tgju.current[SHIBA.usdKey] && tgju.current[SHIBA.usdKey].p);
+  const tetherRial = num(tgju.current[SHIBA.rateKey] && tgju.current[SHIBA.rateKey].p);
+  if (shibaUsd > 0 && tetherRial > 0) prices.shiba = (shibaUsd * tetherRial * SHIBA.scale) / 10;
 } else console.warn('TGJU در دسترس نبود.');
 
 const nobitex = await firstOk([NOBITEX_URL], j => j && j.stats && typeof j.stats === 'object');
