@@ -71,6 +71,37 @@
       </div>
 
     </div>
+
+    <div class="calc-card conv-card" id="converter">
+      <h2 class="conv-title">تبدیل ارز به ارز</h2>
+      <p class="conv-sub">مبدأ و مقصد را انتخاب کن تا با قیمت روز تبدیل شود</p>
+
+      <div class="field">
+        <label for="conv-amount">مقدار</label>
+        <div class="control">
+          <input id="conv-amount" type="text" inputmode="decimal" autocomplete="off" placeholder="۱" value="1">
+        </div>
+        <div class="field-error" id="conv-error" role="alert"></div>
+      </div>
+
+      <div class="field">
+        <label for="conv-from">از</label>
+        <div class="control"><select id="conv-from"></select></div>
+      </div>
+
+      <button type="button" class="swap-btn" id="conv-swap" aria-label="جابه‌جایی مبدأ و مقصد" title="جابه‌جایی مبدأ و مقصد">⇅</button>
+
+      <div class="field">
+        <label for="conv-to">به</label>
+        <div class="control"><select id="conv-to"></select></div>
+      </div>
+
+      <div class="calc-result" id="conv-result" aria-live="polite">
+        <div class="res-label" id="conv-from-text"></div>
+        <div class="res-value" id="conv-value"></div>
+        <div class="res-note" id="conv-note"></div>
+      </div>
+    </div>
   </main>
 
   <footer>
@@ -91,11 +122,26 @@
   var UNITS = {
     dollar: 'دلار', euro: 'یورو', pound: 'پوند', dirham: 'درهم', lira: 'لیر',
     gold18: 'گرم', mesghal: 'مثقال', coin: 'عدد', halfcoin: 'عدد', quartercoin: 'عدد', silver: 'گرم',
-    bitcoin: 'بیت‌کوین', ethereum: 'اتریوم', tether: 'تتر', bnb: 'بایننس‌کوین', xrp: 'ریپل'
+    bitcoin: 'بیت‌کوین', ethereum: 'اتریوم', tether: 'تتر', bnb: 'بایننس‌کوین', xrp: 'ریپل',
+    cad: 'دلار', aud: 'دلار', chf: 'فرانک', cny: 'یوان', jpy: '۱۰۰ ین', rub: 'روبل', sar: 'ریال',
+    kwd: 'دینار', iqd: 'دینار', inr: 'روپیه', afn: 'افغانی',
+    gold24: 'گرم', baharazadi: 'عدد', gerami: 'عدد', goldounce: 'اونس', silverounce: 'اونس',
+    platinum: 'اونس', palladium: 'اونس', brent: 'بشکه', opec: 'بشکه',
+    dogecoin: 'دوج‌کوین', solana: 'سولانا', cardano: 'کاردانو', tron: 'ترون', litecoin: 'لایت‌کوین',
+    toncoin: 'تون‌کوین', polkadot: 'پولکادات', chainlink: 'چین‌لینک', avalanche: 'آوالانچ', shiba: '۱۰۰۰ شیبا'
   };
+
+  // قیمت هر واحد به تومان؛ دارایی‌های دلاری (اونس، نفت) با نرخ دلار به تومان تبدیل می‌شوند
+  function tomanPrice(a) {
+    if (a.current == null) return null;
+    if (a.unit !== 'usd') return a.current;
+    var d = ASSETS.dollar;
+    return d && d.current != null ? a.current * d.current : null;
+  }
   var GROUPS = [
     ['currency', 'ارزهای خارجی'],
     ['metal', 'طلا، سکه و فلزات گران‌بها'],
+    ['energy', 'نفت و انرژی'],
     ['crypto', 'ارزهای دیجیتال']
   ];
 
@@ -152,7 +198,7 @@
     if (a.current == null) {
       priceValueEl.textContent = pendingText(a);
     } else {
-      priceValueEl.innerHTML = formatNumber(a.current) + ' <small>تومان</small>';
+      priceValueEl.innerHTML = formatPrice(a, a.current) + ' <small>' + unitName(a) + '</small>';
     }
     var st = statusInfo(a);
     priceStatusEl.setAttribute('data-state', st[0]);
@@ -172,12 +218,14 @@
 
     if (raw === '') { setError('مقدار را وارد کن'); hideResult(); amountEl.focus(); return; }
     if (!isFinite(qty) || qty <= 0) { setError('یک عدد معتبر وارد کن'); hideResult(); amountEl.focus(); return; }
-    if (a.current == null) { setError('قیمت هنوز دریافت نشده؛ چند ثانیه بعد دوباره امتحان کن'); hideResult(); return; }
+    var unitPrice = tomanPrice(a);
+    if (unitPrice == null) { setError('قیمت هنوز دریافت نشده؛ چند ثانیه بعد دوباره امتحان کن'); hideResult(); return; }
 
     setError('');
-    resValueEl.textContent = formatNumber(qty * a.current) + ' تومان';
+    resValueEl.textContent = formatNumber(qty * unitPrice) + ' تومان';
     resNoteEl.textContent = toFa(qty.toLocaleString('en-US', { maximumFractionDigits: 4 })) + ' ' +
-      (UNITS[key] || '') + ' × ' + formatNumber(a.current) + ' تومان';
+      (UNITS[key] || '') + ' × ' + formatPrice(a, a.current) + ' ' + unitName(a) +
+      (a.unit === 'usd' ? ' × نرخ دلار (' + formatNumber(ASSETS.dollar.current) + ' تومان)' : '');
     boxEl.hidden = false;
     shown = true;
   }
@@ -197,15 +245,103 @@
     renderPrice();
   });
 
+  /* ---------- تبدیل ارز به ارز ---------- */
+  var convAmountEl = document.getElementById('conv-amount');
+  var convFromEl = document.getElementById('conv-from');
+  var convToEl = document.getElementById('conv-to');
+  var convErrorEl = document.getElementById('conv-error');
+  var convFromTextEl = document.getElementById('conv-from-text');
+  var convValueEl = document.getElementById('conv-value');
+  var convNoteEl = document.getElementById('conv-note');
+
+  function convName(key) { return key === 'toman' ? 'تومان' : ASSETS[key].name; }
+
+  // قیمت هر واحد به تومان (برای تومان خودش ۱)
+  function convPrice(key) { return key === 'toman' ? 1 : tomanPrice(ASSETS[key]); }
+
+  // عدد خوانا برای هر اندازه: بزرگ بدون اعشار، متوسط دو رقم اعشار، کوچک (مثل بیت‌کوین) سه رقم معنی‌دار
+  function smartNumber(n) {
+    var abs = Math.abs(n);
+    var opts = abs >= 1000 ? { maximumFractionDigits: 0 }
+      : abs >= 1 ? { maximumFractionDigits: 2 }
+      : { maximumSignificantDigits: 3, maximumFractionDigits: 12 };
+    return toFa(n.toLocaleString('en-US', opts));
+  }
+
+  function fillConvSelect(el, selected) {
+    var first = document.createElement('optgroup');
+    first.setAttribute('label', 'پول ایران');
+    var t = document.createElement('option');
+    t.value = 'toman';
+    t.textContent = 'تومان';
+    first.appendChild(t);
+    el.appendChild(first);
+    GROUPS.forEach(function (g) {
+      var og = document.createElement('optgroup');
+      og.setAttribute('label', g[1]);
+      ORDER[g[0]].forEach(function (key) {
+        var op = document.createElement('option');
+        op.value = key;
+        op.textContent = ASSETS[key].name;
+        og.appendChild(op);
+      });
+      el.appendChild(og);
+    });
+    el.value = selected;
+  }
+  fillConvSelect(convFromEl, 'dollar');
+  fillConvSelect(convToEl, 'toman');
+
+  function convert() {
+    var raw = convAmountEl.value.trim();
+    var qty = raw === '' ? 1 : parseLiveNumber(raw);
+    if (!isFinite(qty) || qty <= 0) {
+      convErrorEl.textContent = 'یک عدد معتبر وارد کن';
+      convAmountEl.setAttribute('aria-invalid', 'true');
+      convValueEl.textContent = '—';
+      convNoteEl.textContent = '';
+      return;
+    }
+    convErrorEl.textContent = '';
+    convAmountEl.setAttribute('aria-invalid', 'false');
+
+    var from = convFromEl.value;
+    var to = convToEl.value;
+    convFromTextEl.textContent = smartNumber(qty) + ' ' + convName(from) + ' برابر است با';
+
+    var pf = convPrice(from);
+    var pt = convPrice(to);
+    if (pf == null || pt == null) {
+      convValueEl.textContent = '…';
+      convNoteEl.textContent = 'قیمت ' + convName(pf == null ? from : to) + ' هنوز دریافت نشده؛ چند ثانیه صبر کن';
+      return;
+    }
+    var rate = pf / pt;
+    convValueEl.textContent = smartNumber(qty * rate) + ' ' + convName(to);
+    convNoteEl.textContent = '۱ ' + convName(from) + ' = ' + smartNumber(rate) + ' ' + convName(to) + ' (با قیمت روز)';
+  }
+
+  convAmountEl.addEventListener('input', convert);
+  convFromEl.addEventListener('change', convert);
+  convToEl.addEventListener('change', convert);
+  document.getElementById('conv-swap').addEventListener('click', function () {
+    var f = convFromEl.value;
+    convFromEl.value = convToEl.value;
+    convToEl.value = f;
+    convert();
+  });
+
   // هر بار که price-page.js قیمت‌ها را به‌روز می‌کند، قیمت و (اگر نتیجه روی صفحه است) نتیجه هم تازه شود
   var baseRenderAll = renderAll;
   renderAll = function () {
     baseRenderAll();
     renderPrice();
     if (shown) calculate();
+    convert();
   };
 
   renderPrice();
+  convert();
 })();
 </script>
 </body>
