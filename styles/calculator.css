@@ -257,3 +257,44 @@
   .calc-result { animation: none; }
   .control, .calc-btn { transition: none; }
 }
+
+/* ---------- تبدیل ارز به ارز ---------- */
+.conv-card {
+  margin-top: 48px;
+}
+.conv-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  color: var(--navy-dark, #00254b);
+}
+.conv-sub {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: #667085;
+}
+.swap-btn {
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin: 14px auto -6px;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--navy-dark, #00254b);
+  background: #f3f5f8;
+  border: 1px solid #d8dee6;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease;
+}
+.swap-btn:hover {
+  background: #e6ebf1;
+  transform: rotate(180deg);
+}
+.swap-btn:focus-visible {
+  outline: 3px solid var(--navy, #00254b);
+  outline-offset: 3px;
+}
+.conv-card .calc-result {
+  margin-top: 24px;
+}
