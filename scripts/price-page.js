@@ -744,7 +744,9 @@ async function updateFromAPI() {
 --------------------------------------------------------------------- */
 const CHART_PERIODS = [6, 12, 24];
 const CHART_DEFAULT_HOURS = 6;
-const CHART_COLORS = { up: '#0a9a3c', down: '#d32f2f', flat: '#5b6b7b' };
+const CHART_COLORS = { up: '#22c55e', down: '#ef4444', flat: '#8aa0b8' };
+const CHART_CANDLES = 24; // تعداد شمع در هر بازه
+let chartMode = 'line'; // 'line' یا 'candle'
 const HISTORY_URL = (function () {
   try {
     const src = document.currentScript && document.currentScript.src;
@@ -798,14 +800,21 @@ function ensureChartDom() {
   overlay.innerHTML = `
     <div class="chart-panel" role="dialog" aria-modal="true" aria-labelledby="chart-title">
       <div class="chart-head">
-        <div>
+        <div class="chart-head-main">
           <h3 id="chart-title"></h3>
           <div class="chart-price" id="chart-price"></div>
+          <span class="chart-chip" id="chart-chip"></span>
         </div>
         <button type="button" class="chart-close" id="chart-close" aria-label="بستن">×</button>
       </div>
-      <div class="chart-periods" role="group" aria-label="بازه‌ی زمانی">
-        ${CHART_PERIODS.map(h => `<button type="button" class="chart-period" data-hours="${h}">${toFa(h)} ساعته</button>`).join('')}
+      <div class="chart-controls">
+        <div class="chart-seg" role="group" aria-label="بازه‌ی زمانی">
+          ${CHART_PERIODS.map(h => `<button type="button" class="chart-period" data-hours="${h}">${toFa(h)} ساعته</button>`).join('')}
+        </div>
+        <div class="chart-seg" role="group" aria-label="نوع نمودار">
+          <button type="button" class="chart-mode" data-mode="line">خطی</button>
+          <button type="button" class="chart-mode" data-mode="candle">شمعی</button>
+        </div>
       </div>
       <div class="chart-body" id="chart-body" dir="ltr"></div>
       <div class="chart-stats" id="chart-stats"></div>
@@ -815,14 +824,24 @@ function ensureChartDom() {
 
   overlay.addEventListener('click', function (event) {
     if (event.target === overlay || event.target.id === 'chart-close') closeChart();
-    const btn = event.target.closest && event.target.closest('.chart-period');
-    if (btn) {
-      chartState.hours = Number(btn.dataset.hours);
+    const periodBtn = event.target.closest && event.target.closest('.chart-period');
+    if (periodBtn) {
+      chartState.hours = Number(periodBtn.dataset.hours);
+      drawChart();
+    }
+    const modeBtn = event.target.closest && event.target.closest('.chart-mode');
+    if (modeBtn) {
+      chartMode = modeBtn.dataset.mode;
       drawChart();
     }
   });
   document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape' && !overlay.hidden) closeChart();
+  });
+  let resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { if (!overlay.hidden) drawChart(); }, 150);
   });
   return overlay;
 }
@@ -840,11 +859,65 @@ async function openChart(key) {
   document.body.classList.add('chart-open');
   const asset = ASSETS[key];
   document.getElementById('chart-title').textContent = asset.name;
+  document.getElementById('chart-price').textContent = '';
+  document.getElementById('chart-chip').textContent = '';
   document.getElementById('chart-body').innerHTML = '<div class="chart-empty">در حال دریافت داده...</div>';
   document.getElementById('chart-stats').innerHTML = '';
   document.getElementById('chart-note').textContent = '';
   chartState.history = await loadHistory();
   if (chartState.key === key) drawChart();
+}
+
+// برچسب‌های «خوانا» برای محور قیمت: تیک‌های گرد و واحد مناسب (میلیارد/میلیون)
+function niceTicks(min, max, count) {
+  const raw = (max - min) / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const mult = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+  const step = mult * mag;
+  const first = Math.ceil(min / step - 1e-9);
+  const ticks = [];
+  for (let i = first; i * step <= max + step * 1e-9; i++) ticks.push(i * step);
+  return { ticks, step };
+}
+
+function axisScale(asset, maxValue) {
+  if (isUsd(asset)) return { div: 1, word: '' };
+  if (maxValue >= 1e9) return { div: 1e9, word: ' میلیارد' };
+  if (maxValue >= 1e7) return { div: 1e6, word: ' میلیون' };
+  return { div: 1, word: '' };
+}
+
+function axisLabel(asset, value, scale, step) {
+  const x = value / scale.div;
+  let decimals = Math.max(0, Math.ceil(-Math.log10(step / scale.div) - 1e-9));
+  decimals = Math.min(4, decimals);
+  if (isUsd(asset)) decimals = Math.max(2, decimals);
+  return toFa(x.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })) + scale.word;
+}
+
+// ساخت شمع‌ها از نقطه‌های ذخیره‌شده؛ باز = بسته‌ی شمع قبلی (مثل صرافی‌ها)
+function buildCandles(pts, windowStart, hours) {
+  const bucket = (hours * 3600) / CHART_CANDLES;
+  const candles = [];
+  let prevClose = null;
+  for (let i = 0; i < CHART_CANDLES; i++) {
+    const lo = windowStart + i * bucket;
+    const hi = lo + bucket;
+    const seg = pts.filter(p => p[0] >= lo && (p[0] < hi || (i === CHART_CANDLES - 1 && p[0] <= hi)));
+    if (!seg.length) continue;
+    const values = seg.map(p => p[1]);
+    const open = prevClose != null ? prevClose : values[0];
+    const close = values[values.length - 1];
+    candles.push({
+      i, t: lo + bucket / 2, from: lo,
+      open, close,
+      high: Math.max(open, ...values),
+      low: Math.min(open, ...values)
+    });
+    prevClose = close;
+  }
+  return candles;
 }
 
 function drawChart() {
@@ -854,70 +927,124 @@ function drawChart() {
   const bodyEl = document.getElementById('chart-body');
   const statsEl = document.getElementById('chart-stats');
   const noteEl = document.getElementById('chart-note');
+  const chipEl = document.getElementById('chart-chip');
 
   document.querySelectorAll('.chart-period').forEach(btn => {
     btn.setAttribute('aria-pressed', Number(btn.dataset.hours) === hours ? 'true' : 'false');
   });
-  document.getElementById('chart-price').textContent = asset.current != null
-    ? `${formatPrice(asset, asset.current)} ${unitName(asset)}`
+  document.querySelectorAll('.chart-mode').forEach(btn => {
+    btn.setAttribute('aria-pressed', btn.dataset.mode === chartMode ? 'true' : 'false');
+  });
+  document.getElementById('chart-price').innerHTML = asset.current != null
+    ? `${formatPrice(asset, asset.current)} <small>${unitName(asset)}</small>`
     : '';
 
   const pts = chartSeriesFor(key, hours, chartState.history);
   statsEl.innerHTML = '';
   noteEl.textContent = '';
+  chipEl.textContent = '';
+  chipEl.className = 'chart-chip';
+
   const MIN_SPAN_SECONDS = 15 * 60;
   if (pts.length < 2 || pts[pts.length - 1][0] - pts[0][0] < MIN_SPAN_SECONDS) {
     bodyEl.innerHTML = `<div class="chart-empty">هنوز داده‌ی کافی برای ${toFa(hours)} ساعت گذشته جمع نشده است.<br>ربات هر چند دقیقه یک نقطه ذخیره می‌کند؛ کمی بعد دوباره سر بزن.</div>`;
     return;
   }
 
+  const now = Math.floor(Date.now() / 1000);
+  const windowStart = now - hours * 3600;
+  const windowEnd = now;
+  const span = windowEnd - windowStart;
   const prices = pts.map(p => p[1]);
-  const min = Math.min.apply(null, prices);
-  const max = Math.max.apply(null, prices);
   const first = prices[0];
   const last = prices[prices.length - 1];
-  const t0 = pts[0][0];
-  const t1 = pts[pts.length - 1][0];
-  const span = Math.max(t1 - t0, 1);
-  const range = max - min;
   const state = last > first ? 'up' : last < first ? 'down' : 'flat';
   const color = CHART_COLORS[state];
+  const candles = chartMode === 'candle' ? buildCandles(pts, windowStart, hours) : [];
 
-  const xs = pts.map(p => ((p[0] - t0) / span) * 100);
-  const ys = pts.map(p => range === 0 ? 50 : 92 - ((p[1] - min) / range) * 84);
-  const line = xs.map((x, i) => `${x.toFixed(2)},${ys[i].toFixed(2)}`).join(' ');
-  const area = `0,100 ${line} 100,100`;
+  let dataMin = Math.min.apply(null, chartMode === 'candle' && candles.length ? candles.map(c => c.low) : prices);
+  let dataMax = Math.max.apply(null, chartMode === 'candle' && candles.length ? candles.map(c => c.high) : prices);
+  const flat = dataMax === dataMin;
+  if (flat) {
+    const pad = Math.abs(dataMax) * 0.002 || 1;
+    dataMin -= pad;
+    dataMax += pad;
+  } else {
+    const pad = (dataMax - dataMin) * 0.1;
+    dataMin -= pad;
+    dataMax += pad;
+  }
+  const { ticks, step } = niceTicks(dataMin, dataMax, 4);
+  const scale = axisScale(asset, dataMax);
 
-  bodyEl.innerHTML = `
-    <div class="chart-plot" id="chart-plot">
-      <span class="chart-axis chart-axis-max">${formatPrice(asset, max)}</span>
-      <span class="chart-axis chart-axis-min">${formatPrice(asset, min)}</span>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-          <linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="${color}" stop-opacity="0.28"/>
-            <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
-        <polygon points="${area}" fill="url(#chart-fill)"/>
-        <polyline points="${line}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-      </svg>
-      <span class="chart-dot" id="chart-dot" hidden style="background:${color}"></span>
-      <div class="chart-tip" id="chart-tip" hidden></div>
-    </div>
-    <div class="chart-times"><span>${formatClock(t0)}</span><span>${formatClock(t1)}</span></div>`;
+  const W = Math.max(bodyEl.clientWidth || 320, 260);
+  const H = window.innerWidth < 600 ? 230 : 280;
+  const L = 6, R = 86, T = 8, B = 24;
+  const pw = W - L - R;
+  const ph = H - T - B;
+  const X = t => L + ((t - windowStart) / span) * pw;
+  const Y = v => T + (1 - (v - dataMin) / (dataMax - dataMin)) * ph;
+
+  let svg = `<svg class="chart-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" dir="ltr" aria-hidden="true">`;
+  // خطوط راهنما و برچسب قیمت (سمت راست)
+  ticks.forEach(v => {
+    const y = Y(v);
+    svg += `<line class="chart-grid" x1="${L}" x2="${L + pw}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    svg += `<text class="chart-axis-text" x="${L + pw + 8}" y="${(y + 3.5).toFixed(1)}">${axisLabel(asset, v, scale, step)}</text>`;
+  });
+  // محور زمان (پایین)
+  for (let i = 0; i <= 4; i++) {
+    const x = L + (i / 4) * pw;
+    const anchor = i === 0 ? 'start' : i === 4 ? 'end' : 'middle';
+    svg += `<line class="chart-grid chart-grid-v" x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${T}" y2="${T + ph}"/>`;
+    svg += `<text class="chart-axis-text" x="${x.toFixed(1)}" y="${H - 7}" text-anchor="${anchor}">${formatClock(windowStart + (span * i) / 4)}</text>`;
+  }
+
+  if (chartMode === 'candle' && candles.length) {
+    const slot = pw / CHART_CANDLES;
+    const cw = Math.max(3, Math.min(slot * 0.62, 16));
+    candles.forEach(c => {
+      const x = L + (c.i + 0.5) * slot;
+      const col = c.close >= c.open ? CHART_COLORS.up : CHART_COLORS.down;
+      const yo = Y(c.open), yc = Y(c.close);
+      svg += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${Y(c.high).toFixed(1)}" y2="${Y(c.low).toFixed(1)}" stroke="${col}" stroke-width="1.5"/>`;
+      svg += `<rect x="${(x - cw / 2).toFixed(1)}" y="${Math.min(yo, yc).toFixed(1)}" width="${cw.toFixed(1)}" height="${Math.max(2, Math.abs(yo - yc)).toFixed(1)}" fill="${col}" rx="1.5"/>`;
+    });
+  } else {
+    const line = pts.map(p => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');
+    const x0 = X(pts[0][0]).toFixed(1);
+    const x1 = X(pts[pts.length - 1][0]).toFixed(1);
+    svg += `<defs><linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.32"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>`;
+    svg += `<polygon points="${x0},${T + ph} ${line} ${x1},${T + ph}" fill="url(#chart-fill)"/>`;
+    svg += `<polyline points="${line}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+
+  // خط‌چین و برچسب قیمت فعلی روی محور
+  const ly = Y(last);
+  svg += `<line x1="${L}" x2="${L + pw}" y1="${ly.toFixed(1)}" y2="${ly.toFixed(1)}" stroke="${color}" stroke-width="1" stroke-dasharray="4 3" opacity="0.85"/>`;
+  svg += `<rect x="${L + pw + 2}" y="${(ly - 9).toFixed(1)}" width="${R - 4}" height="18" rx="4" fill="${color}"/>`;
+  svg += `<text class="chart-axis-text chart-last-text" x="${L + pw + 2 + (R - 4) / 2}" y="${(ly + 3.5).toFixed(1)}" text-anchor="middle">${axisLabel(asset, last, scale, step)}</text>`;
+  // عناصر ضربدر دقیق (در ابتدا پنهان)
+  svg += `<line id="chart-cross-v" class="chart-cross" y1="${T}" y2="${T + ph}" style="display:none"/>`;
+  svg += `<circle id="chart-cross-dot" r="5" fill="${color}" stroke="#001421" stroke-width="2" style="display:none"/>`;
+  svg += '</svg>';
+
+  bodyEl.innerHTML = `<div class="chart-plot" id="chart-plot" style="height:${H}px">${svg}<div class="chart-tip" id="chart-tip" hidden></div></div>`;
 
   const pct = first > 0 ? ((last - first) / first) * 100 : 0;
-  const pctText = (pct > 0 ? '+' : '') + toFa(pct.toFixed(2)) + '٪';
+  chipEl.className = `chart-chip chart-chip-${state}`;
+  chipEl.setAttribute('dir', 'ltr');
+  chipEl.textContent = `${state === 'up' ? '▲' : state === 'down' ? '▼' : '■'} ${toFa(Math.abs(pct).toFixed(2))}٪`;
   statsEl.innerHTML = `
-    <div class="chart-stat"><span>تغییر ${toFa(hours)} ساعت</span><strong dir="ltr" style="color:${color}">${pctText}</strong></div>
-    <div class="chart-stat"><span>بیشترین</span><strong>${formatPrice(asset, max)}</strong></div>
-    <div class="chart-stat"><span>کمترین</span><strong>${formatPrice(asset, min)}</strong></div>`;
+    <div class="chart-stat"><span>بیشترین</span><strong>${formatPrice(asset, Math.max.apply(null, prices))}</strong></div>
+    <div class="chart-stat"><span>کمترین</span><strong>${formatPrice(asset, Math.min.apply(null, prices))}</strong></div>
+    <div class="chart-stat"><span>شروع بازه</span><strong>${formatPrice(asset, first)}</strong></div>`;
 
-  const ageMin = Math.round((Date.now() / 1000 - pts[pts.length - 1][0]) / 60);
-  const windowStart = Math.floor(Date.now() / 1000) - hours * 3600;
+  const t0 = pts[0][0];
+  const t1 = pts[pts.length - 1][0];
+  const ageMin = Math.round((Date.now() / 1000 - t1) / 60);
   const collectedHours = Math.max(1, Math.round((t1 - t0) / 3600));
-  if (range === 0 && pts.length >= 3) {
+  if (flat && pts.length >= 3) {
     noteEl.textContent = 'در این بازه قیمت تغییر نکرده است؛ ممکن است منبع این نرخ فقط یک‌بار در روز به‌روز شود.';
   } else if (t0 - windowStart > 30 * 60) {
     noteEl.textContent = `داده‌ی این نرخ هنوز حدود ${toFa(collectedHours)} ساعت جمع شده است و با گذشت زمان کامل‌تر می‌شود.`;
@@ -925,25 +1052,51 @@ function drawChart() {
     noteEl.textContent = `آخرین داده‌ی ذخیره‌شده ${toFa(ageMin)} دقیقه پیش است.`;
   }
 
+  // ضربدر دقیق با لمس یا حرکت موس
   const plot = document.getElementById('chart-plot');
-  const dot = document.getElementById('chart-dot');
+  const crossV = document.getElementById('chart-cross-v');
+  const crossDot = document.getElementById('chart-cross-dot');
   const tip = document.getElementById('chart-tip');
   function show(event) {
     const rect = plot.getBoundingClientRect();
-    const frac = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
-    const target = t0 + frac * span;
-    let best = 0;
-    for (let i = 1; i < pts.length; i++) {
-      if (Math.abs(pts[i][0] - target) < Math.abs(pts[best][0] - target)) best = i;
+    const px = Math.min(Math.max(event.clientX - rect.left, L), L + pw);
+    let x, html;
+    if (chartMode === 'candle' && candles.length) {
+      const slot = pw / CHART_CANDLES;
+      const idx = Math.min(Math.max(Math.floor((px - L) / slot), 0), CHART_CANDLES - 1);
+      let c = candles.find(k => k.i === idx);
+      if (!c) c = candles.reduce((best, k) => Math.abs(k.i - idx) < Math.abs(best.i - idx) ? k : best, candles[0]);
+      x = L + (c.i + 0.5) * slot;
+      crossDot.style.display = 'none';
+      html = `<b>${formatClock(c.from)}</b>
+        <span>باز</span><em>${formatPrice(asset, c.open)}</em>
+        <span>بالا</span><em>${formatPrice(asset, c.high)}</em>
+        <span>پایین</span><em>${formatPrice(asset, c.low)}</em>
+        <span>بسته</span><em>${formatPrice(asset, c.close)}</em>`;
+    } else {
+      const target = windowStart + ((px - L) / pw) * span;
+      let best = pts[0];
+      pts.forEach(p => { if (Math.abs(p[0] - target) < Math.abs(best[0] - target)) best = p; });
+      x = X(best[0]);
+      crossDot.setAttribute('cx', x.toFixed(1));
+      crossDot.setAttribute('cy', Y(best[1]).toFixed(1));
+      crossDot.style.display = '';
+      html = `<b>${formatPrice(asset, best[1])} ${unitName(asset)}</b><span class="chart-tip-time">${formatClock(best[0])}</span>`;
     }
-    dot.hidden = false;
+    crossV.setAttribute('x1', x.toFixed(1));
+    crossV.setAttribute('x2', x.toFixed(1));
+    crossV.style.display = '';
+    tip.innerHTML = html;
     tip.hidden = false;
-    dot.style.left = xs[best] + '%';
-    dot.style.top = ys[best] + '%';
-    tip.textContent = `${formatPrice(asset, pts[best][1])} ${unitName(asset)} · ${formatClock(pts[best][0])}`;
-    tip.style.left = Math.min(Math.max(xs[best], 22), 78) + '%';
+    tip.className = chartMode === 'candle' && candles.length ? 'chart-tip chart-tip-ohlc' : 'chart-tip';
+    const half = tip.offsetWidth / 2;
+    tip.style.left = Math.min(Math.max(x, half + 4), L + pw - half + 40) + 'px';
   }
-  function hide() { dot.hidden = true; tip.hidden = true; }
+  function hide() {
+    crossV.style.display = 'none';
+    crossDot.style.display = 'none';
+    tip.hidden = true;
+  }
   plot.addEventListener('pointermove', show);
   plot.addEventListener('pointerdown', show);
   plot.addEventListener('pointerleave', hide);
