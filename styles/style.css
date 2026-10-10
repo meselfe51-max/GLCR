@@ -533,3 +533,18 @@ body.chart-open { overflow: hidden; }
   .price-section tbody td:nth-child(3) { grid-area: chg; justify-self: end; font-size: 13px; }
   .price-section tbody td:nth-child(4) { grid-area: price; justify-self: end; font-weight: 700; font-size: 16px; }
 }
+
+/* ---------- لوگوی GLCR در نوار بالا ---------- */
+.top-header h2 .brand {
+  display: inline-block;
+  vertical-align: middle;
+  margin-inline-start: 0.4rem;
+}
+.top-header h2 .brand img {
+  display: block;
+  height: 28px;
+  width: auto;
+}
+@media (max-width: 600px) {
+  .top-header h2 .brand img { height: 22px; }
+}
