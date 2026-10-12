@@ -3,7 +3,13 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 const OUT = 'data/history.json';
-const KEEP_SECONDS = 26 * 60 * 60; // کمی بیشتر از ۲۴ ساعت
+const KEEP_SECONDS = 26 * 60 * 60;
+const DAILY_KEEP_DAYS = 130; // برای بازده ۷/۳۰/۹۰ روزه‌ی داشبورد: آخرین قیمت هر روز (به وقت تهران)
+
+// کلید روز به وقت تهران (UTC+3:30، بدون ساعت تابستانی)
+function tehranDay(ts) {
+  return new Date((ts + 12600) * 1000).toISOString().slice(0, 10);
+} // کمی بیشتر از ۲۴ ساعت
 const TIMEOUT_MS = 15000;
 
 const TGJU_URLS = [
@@ -103,6 +109,18 @@ for (const [asset, price] of Object.entries(prices)) {
 for (const asset of Object.keys(history.points)) {
   history.points[asset] = history.points[asset].filter(p => p[0] >= cutoff);
   if (history.points[asset].length === 0) delete history.points[asset];
+}
+
+// ذخیره‌ی روزانه: برای هر دارایی، آخرین قیمت هر روز؛ هر اجرا قیمت همان روز را به‌روز می‌کند
+if (!history.daily || typeof history.daily !== 'object') history.daily = {};
+const dailyCutoff = now - DAILY_KEEP_DAYS * 86400;
+const today = tehranDay(now);
+for (const [asset, price] of Object.entries(prices)) {
+  const arr = (history.daily[asset] || []).filter(p => Array.isArray(p) && p[0] >= dailyCutoff);
+  const rounded = Math.round(price * 100) / 100;
+  if (arr.length && tehranDay(arr[arr.length - 1][0]) === today) arr[arr.length - 1] = [now, rounded];
+  else arr.push([now, rounded]);
+  history.daily[asset] = arr;
 }
 
 console.log(`قیمت ${added} دارایی ثبت شد.`);
