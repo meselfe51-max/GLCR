@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="داشبورد بازار: بازده ارز، طلا، سکه و ارز دیجیتال در ۷ و ۳۰ و ۹۰ روز، نمودار مقایسه‌ای، نقشه‌ی حرارتی بازار و حباب سکه.">
+<title>داشبورد بازار؛ بازده و مقایسه‌ی ارز، طلا و سکه | GLCR</title>
+<!--seo:start-->
+<link rel="icon" href="../images/favicon.ico" sizes="48x48">
+<link rel="icon" href="../images/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://YOUR-DOMAIN.com/dashboard/">
+<meta name="theme-color" content="#001421">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GLCR">
+<meta property="og:locale" content="fa_IR">
+<meta property="og:title" content="داشبورد بازار؛ بازده و مقایسه‌ی ارز، طلا و سکه | GLCR">
+<meta property="og:description" content="داشبورد بازار: بازده ارز، طلا، سکه و ارز دیجیتال در ۷ و ۳۰ و ۹۰ روز، نمودار مقایسه‌ای، نقشه‌ی حرارتی بازار و حباب سکه.">
+<meta property="og:url" content="https://YOUR-DOMAIN.com/dashboard/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="داشبورد بازار؛ بازده و مقایسه‌ی ارز، طلا و سکه | GLCR">
+<meta name="twitter:description" content="داشبورد بازار: بازده ارز، طلا، سکه و ارز دیجیتال در ۷ و ۳۰ و ۹۰ روز، نمودار مقایسه‌ای، نقشه‌ی حرارتی بازار و حباب سکه.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"GLCR","item":"https://YOUR-DOMAIN.com/"},{"@type":"ListItem","position":2,"name":"داشبورد بازار","item":"https://YOUR-DOMAIN.com/dashboard/"}]}</script>
+<!--seo:end-->
+<link rel="stylesheet" href="../styles/style.css">
+<link rel="stylesheet" href="../styles/dashboard.css">
+</head>
+<body class="dash-page">
+
+  <div class="top-header">
+    <h2>نرخ های زنده ارز جهان <span class="brand"><img src="../images/glcr-logo.png" alt="GLCR" width="96" height="28"></span></h2>
+  </div>
+  <nav class="site-tabs" aria-label="بخش‌های سایت"><a href="../index.html">قیمت‌ها</a><a href="index.html" aria-current="page">داشبورد</a><a href="../calculator/index.html">ماشین‌حساب</a></nav>
+
+  <main class="dash">
+    <div class="dash-hero">
+      <h1>داشبورد بازار</h1>
+      <p>کدام دارایی بیشتر سود داده؟ همه‌ی نرخ‌ها را در یک بازه کنار هم ببین.</p>
+    </div>
+
+    <div class="dash-seg" id="period" role="group" aria-label="بازه‌ی زمانی"></div>
+
+    <section class="dash-card" id="rank-card">
+      <h2 id="rank-title">بازده دارایی‌ها</h2>
+      <p class="dash-hint">از بهترین به بدترین؛ روی هر ردیف بزن تا نمودارش باز شود.</p>
+      <div id="rank"></div>
+    </section>
+
+    <section class="dash-card" id="cmp-card">
+      <h2>مقایسه‌ی نمودار</h2>
+      <p class="dash-hint">همه از عدد ۱۰۰ شروع می‌شوند تا رشد نرخ‌ها قابل‌مقایسه باشد.</p>
+      <div class="cmp-chips" id="cmp-chips"></div>
+      <div id="cmp-body"></div>
+      <p class="dash-note" id="cmp-note"></p>
+    </section>
+
+    <section class="dash-card" id="kpi-card">
+      <h2>شاخص‌های بازار</h2>
+      <p class="dash-hint">با قیمت‌های زنده‌ی همین لحظه محاسبه می‌شوند.</p>
+      <div class="kpis" id="kpis"></div>
+    </section>
+
+    <section class="dash-card" id="heat-card">
+      <h2>نقشه‌ی حرارتی امروز</h2>
+      <p class="dash-hint">سبز یعنی صعود و قرمز یعنی نزول نسبت به مبنای روز؛ روی هر نرخ بزن تا نمودارش باز شود.</p>
+      <div id="heat"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p id="dash-foot">آخرین بروز رسانی قیمت های ارز</p>
+    <p>تمامی حقوق این سایت متعلق به تیم GLCR است_2026 </p>
+    <p><a href="#">درباره ما</a></p>
+  </footer>
+
+<div hidden aria-hidden="true">
+  <span id="asset-title"></span><span id="asset-label"></span><span id="asset-price"></span>
+  <span id="live-status"></span><a id="details-link" href="#"></a>
+</div>
+
+<script src="../scripts/price-page.js"></script>
+<script>
+(function () {
+  'use strict';
+  var PERIODS = [['today', 'امروز'], [7, '۷ روز'], [30, '۳۰ روز'], [90, '۹۰ روز']];
+  var COLORS = ['#186cd1', '#d99a00', '#8e44ad', '#f7931a', '#0a9a3c', '#d32f2f'];
+  var MAX_LINES = 6;
+  var GROUP_TITLES = { currency: 'ارزهای خارجی', metal: 'طلا، سکه و فلزات', energy: 'نفت و انرژی', crypto: 'ارز دیجیتال' };
+  var period = 'today';
+  var hist = null;
+  var rankExpanded = false;
+  var selected = ['dollar', 'coin', 'goldounce', 'bitcoin'].filter(function (k) { return ASSETS[k]; });
+  var $ = function (id) { return document.getElementById(id); };
+  var allKeys = Object.keys(ASSETS);
+
+  function pct(v) {
+    if (v == null || !isFinite(v)) return '—';
+    var r = Math.round(v * 10) / 10;
+    return toFa((r > 0 ? '+' : r < 0 ? '-' : '') + Math.abs(r).toFixed(1)) + '٪';
+  }
+  function cls(v) { return v > 0 ? 'dash-up' : v < 0 ? 'dash-down' : ''; }
+  function periodDays() { return period === 'today' ? 1 : period; }
+
+  /* ---------- دسترسی به داده‌ی ربات ---------- */
+  function daily(key) { return (hist && hist.daily && hist.daily[key]) || []; }
+  function maxCollectedDays() {
+    var now = Date.now() / 1000, best = 0;
+    allKeys.forEach(function (k) {
+      var a = daily(k);
+      if (a.length) best = Math.max(best, (now - a[0][0]) / 86400);
+    });
+    return best;
+  }
+
+  // بازده درصدی یک نرخ در بازه‌ی انتخاب‌شده؛ null یعنی داده‌ی کافی نداریم
+  function returnFor(key) {
+    var a = ASSETS[key];
+    if (period === 'today') {
+      if (a.current == null || a.previous == null) return null;
+      return calculateChange(a.current, a.previous).percent;
+    }
+    var arr = daily(key);
+    if (!arr.length) return null;
+    var target = Date.now() / 1000 - period * 86400;
+    if (arr[0][0] > target + 43200) return null; // قدیمی‌ترین نقطه باید به ابتدای بازه برسد (۱۲ ساعت تحمل)
+    var base = arr[0];
+    arr.forEach(function (p) { if (Math.abs(p[0] - target) < Math.abs(base[0] - target)) base = p; });
+    var cur = a.current != null ? a.current : arr[arr.length - 1][1];
+    return base[1] > 0 ? ((cur - base[1]) / base[1]) * 100 : null;
+  }
+
+  /* ---------- دکمه‌های بازه ---------- */
+  function renderPeriods() {
+    $('period').innerHTML = PERIODS.map(function (p) {
+      return '<button type="button" data-p="' + p[0] + '" aria-pressed="' + (String(p[0]) === String(period)) + '">' + p[1] + '</button>';
+    }).join('');
+  }
+  $('period').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    period = b.dataset.p === 'today' ? 'today' : Number(b.dataset.p);
+    renderPeriods();
+    renderRank();
+    renderCompare();
+  });
+
+  /* ---------- ۱) بازده ---------- */
+  function insufficientMessage() {
+    if (!hist) return 'هنوز تاریخچه‌ای ذخیره نشده است. ربات از روزی که روشن می‌شود قیمت‌ها را جمع می‌کند.';
+    var d = maxCollectedDays();
+    return 'برای بازده ' + toFa(period) + ' روزه به ' + toFa(period) + ' روز داده نیاز است و تاکنون حدود ' +
+      toFa(Math.floor(d)) + ' روز جمع شده است. با گذشت زمان این بخش پر می‌شود؛ بازه‌ی «امروز» همین حالا کار می‌کند.';
+  }
+  function rankRow(item, maxAbs) {
+    var w = maxAbs ? (Math.abs(item.v) / maxAbs) * 50 : 0;
+    var color = item.v >= 0 ? '#22a55a' : '#e0443e';
+    var st = item.v >= 0 ? 'left:50%;width:' + w + '%;background:' + color : 'right:50%;width:' + w + '%;background:' + color;
+    return '<div class="rank" data-k="' + item.k + '"><span>' + ASSETS[item.k].name + '</span><div class="bar"><span class="mid"></span><i style="' + st + '"></i></div><b class="' + cls(item.v) + '">' + pct(item.v) + '</b></div>';
+  }
+  function renderRank() {
+    $('rank-title').textContent = 'بازده دارایی‌ها ' + (period === 'today' ? 'امروز' : 'در ' + toFa(period) + ' روز');
+    var items = [];
+    allKeys.forEach(function (k) {
+      var v = returnFor(k);
+      if (v != null && isFinite(v)) items.push({ k: k, v: v });
+    });
+    var box = $('rank');
+    if (items.length < 2) { box.innerHTML = '<div class="dash-empty">' + (period === 'today' ? 'در حال دریافت قیمت‌ها...' : insufficientMessage()) + '</div>'; return; }
+    items.sort(function (a, b) { return b.v - a.v; });
+    var maxAbs = Math.max.apply(null, items.map(function (i) { return Math.abs(i.v); }));
+    var html;
+    if (rankExpanded || items.length <= 12) {
+      html = items.map(function (i) { return rankRow(i, maxAbs); }).join('');
+    } else {
+      html = items.slice(0, 7).map(function (i) { return rankRow(i, maxAbs); }).join('') +
+        '<div class="rank-gap">• • •</div>' +
+        items.slice(-4).map(function (i) { return rankRow(i, maxAbs); }).join('');
+    }
+    if (items.length > 12) {
+      html += '<button type="button" class="rank-more" id="rank-more">' + (rankExpanded ? 'نمایش کمتر' : 'نمایش همه‌ی ' + toFa(items.length) + ' نرخ') + '</button>';
+    }
+    box.innerHTML = html;
+  }
+  $('rank').addEventListener('click', function (e) {
+    if (e.target.id === 'rank-more') { rankExpanded = !rankExpanded; renderRank(); return; }
+    var row = e.target.closest('.rank');
+    if (row) openChart(row.dataset.k);
+  });
+
+  /* ---------- ۲) مقایسه‌ی نمودار (پایه‌ی ۱۰۰) ---------- */
+  function compareSeries(key) {
+    var now = Math.floor(Date.now() / 1000);
+    var pts;
+    if (period === 'today') {
+      var from = now - 86400;
+      pts = ((hist && hist.points && hist.points[key]) || []).filter(function (p) { return p[0] >= from; });
+    } else {
+      var arr = daily(key);
+      if (!arr.length) return [];
+      var target = now - period * 86400, bi = 0;
+      arr.forEach(function (p, i) { if (Math.abs(p[0] - target) < Math.abs(arr[bi][0] - target)) bi = i; });
+      pts = arr.slice(bi); // همان نقطه‌ی مبنای جدول بازده، تا اعداد هر دو بخش یکی باشد
+    }
+    var live = ASSETS[key].current;
+    if (live != null && pts.length) {
+      pts = pts.filter(function (p) { return p[0] < now - 60; });
+      pts.push([now, live]); // پایان نمودار با قیمت زنده‌ی جدول
+    }
+    return pts;
+  }
+  function renderChips(stats) {
+    var html = selected.map(function (k, i) {
+      var s = stats[k];
+      return '<span class="cmp-chip" data-k="' + k + '" title="حذف از نمودار"><i style="background:' + COLORS[i % COLORS.length] + '"></i>' +
+        ASSETS[k].name + (s != null ? ' <em class="' + cls(s) + '">' + pct(s) + '</em>' : '') + ' <span class="x">×</span></span>';
+    }).join('');
+    if (selected.length < MAX_LINES) {
+      var opts = allKeys.filter(function (k) { return selected.indexOf(k) < 0; })
+        .map(function (k) { return '<option value="' + k + '">' + ASSETS[k].name + '</option>'; }).join('');
+      html += '<select class="cmp-add" id="cmp-add" aria-label="افزودن نرخ"><option value="">+ افزودن نرخ</option>' + opts + '</select>';
+    }
+    $('cmp-chips').innerHTML = html;
+  }
+  function renderCompare() {
+    var body = $('cmp-body'), note = $('cmp-note');
+    note.textContent = '';
+    var now = Math.floor(Date.now() / 1000);
+    var days = periodDays();
+    var ws = now - days * 86400;
+    var lines = [], stats = {};
+    selected.forEach(function (k, i) {
+      var pts = compareSeries(k);
+      if (pts.length < 2 || pts[pts.length - 1][0] - pts[0][0] < (period === 'today' ? 900 : 86400)) { stats[k] = null; return; }
+      var base = pts[0][1];
+      if (!(base > 0)) { stats[k] = null; return; }
+      var norm = pts.map(function (p) { return [p[0], (p[1] / base) * 100]; });
+      stats[k] = norm[norm.length - 1][1] - 100;
+      lines.push({ k: k, color: COLORS[i % COLORS.length], pts: norm });
+    });
+    renderChips(stats);
+    if (!lines.length) {
+      body.innerHTML = '<div class="dash-empty">' + (period === 'today'
+        ? 'هنوز داده‌ی ۲۴ ساعته‌ی کافی برای این نرخ‌ها جمع نشده است.'
+        : insufficientMessage()) + '</div>';
+      return;
+    }
+    var missing = selected.filter(function (k) { return stats[k] == null; });
+    var firstT = Math.min.apply(null, lines.map(function (l) { return l.pts[0][0]; }));
+    var notes = [];
+    if (missing.length) notes.push('برای این نرخ‌ها هنوز داده‌ی کافی نیست: ' + missing.map(function (k) { return ASSETS[k].name; }).join('، ') + '.');
+    if (period !== 'today' && firstT - ws > 0.15 * (now - ws)) notes.push('تاکنون فقط حدود ' + toFa(Math.max(1, Math.round((now - firstT) / 86400))) + ' روز داده داریم و نمودار از همان زمان شروع می‌شود.');
+    note.textContent = notes.join(' ');
+
+    var W = Math.max(body.clientWidth || 320, 260), H = window.innerWidth < 600 ? 220 : 280;
+    var L = 6, R = 44, T = 8, B = 22, pw = W - L - R, ph = H - T - B;
+    var all = [].concat.apply([], lines.map(function (l) { return l.pts.map(function (p) { return p[1]; }); }));
+    var mn = Math.min.apply(null, all), mx = Math.max.apply(null, all);
+    if (mx - mn < 0.4) { mn -= 0.3; mx += 0.3; }
+    var padv = (mx - mn) * 0.1; mn -= padv; mx += padv;
+    var tk = niceTicks(mn, mx, 4);
+    var span = now - ws;
+    var X = function (t) { return L + ((t - ws) / span) * pw; };
+    var Y = function (v) { return T + (1 - (v - mn) / (mx - mn)) * ph; };
+    var dec = tk.step < 1 ? 1 : 0;
+    var svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">';
+    tk.ticks.forEach(function (v) {
+      svg += '<line class="cmp-grid" x1="' + L + '" x2="' + (L + pw) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '"/><text x="' + (L + pw + 6) + '" y="' + (Y(v) + 3.5).toFixed(1) + '">' + toFa(v.toFixed(dec)) + '</text>';
+    });
+    svg += '<line class="cmp-base" x1="' + L + '" x2="' + (L + pw) + '" y1="' + Y(100).toFixed(1) + '" y2="' + Y(100).toFixed(1) + '"/>';
+    var labels = period === 'today' ? ['۲۴ ساعت پیش', '', '', '', 'اکنون'] : [toFa(days) + ' روز پیش', '', '', '', 'امروز'];
+    labels.forEach(function (t, i) {
+      if (!t) return;
+      svg += '<text x="' + (L + (i / 4) * pw).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="' + (i === 0 ? 'start' : 'end') + '">' + t + '</text>';
+    });
+    lines.forEach(function (l) {
+      svg += '<polyline fill="none" stroke="' + l.color + '" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="' +
+        l.pts.map(function (p) { return X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1); }).join(' ') + '"/>';
+      var last = l.pts[l.pts.length - 1];
+      svg += '<circle cx="' + X(last[0]).toFixed(1) + '" cy="' + Y(last[1]).toFixed(1) + '" r="3.5" fill="' + l.color + '"/>';
+    });
+    svg += '<line id="cmp-cross" y1="' + T + '" y2="' + (T + ph) + '" stroke="#6f8aa8" stroke-dasharray="3 3" style="display:none"/></svg>';
+    body.innerHTML = '<div class="cmp-plot" id="cmp-plot">' + svg + '<div class="cmp-tip" id="cmp-tip" hidden></div></div>';
+
+    var plot = $('cmp-plot'), cross = $('cmp-cross'), tip = $('cmp-tip');
+    function show(ev) {
+      var rect = plot.getBoundingClientRect();
+      var px = Math.min(Math.max(ev.clientX - rect.left, L), L + pw);
+      var t = ws + ((px - L) / pw) * span;
+      var rows = lines.map(function (l) {
+        var best = l.pts[0];
+        l.pts.forEach(function (p) { if (Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p; });
+        return '<span><span><i style="background:' + l.color + '"></i>' + ASSETS[l.k].name + '</span><em class="' + '">' + pct(best[1] - 100) + '</em></span>';
+      }).join('');
+      var d = new Date(t * 1000);
+      var title = period === 'today'
+        ? toFa(d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tehran' }))
+        : toFa(d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', timeZone: 'Asia/Tehran' }));
+      tip.innerHTML = '<b>' + title + '</b>' + rows;
+      tip.hidden = false;
+      cross.setAttribute('x1', px); cross.setAttribute('x2', px); cross.style.display = '';
+      var half = tip.offsetWidth / 2;
+      tip.style.left = Math.min(Math.max(px, half + 4), W - half - 4) + 'px';
+    }
+    plot.addEventListener('pointermove', show);
+    plot.addEventListener('pointerdown', show);
+    plot.addEventListener('pointerleave', function () { tip.hidden = true; cross.style.display = 'none'; });
+  }
+  $('cmp-chips').addEventListener('click', function (e) {
+    var chip = e.target.closest('.cmp-chip');
+    if (chip) { selected = selected.filter(function (k) { return k !== chip.dataset.k; }); renderCompare(); }
+  });
+  $('cmp-chips').addEventListener('change', function (e) {
+    if (e.target.id === 'cmp-add' && e.target.value && selected.length < MAX_LINES) { selected.push(e.target.value); renderCompare(); }
+  });
+
+  /* ---------- ۳) شاخص‌ها ---------- */
+  function kpiCard(title, value, unit, delta, note) {
+    return '<div class="kpi"><h3>' + title + '</h3><div class="v">' + value + (unit ? ' <small>' + unit + '</small>' : '') + '</div>' +
+      (delta != null ? '<div class="d ' + cls(delta) + '"><span dir="ltr">' + pct(delta) + '</span> امروز</div>' : '') + '<div class="n">' + note + '</div></div>';
+  }
+  function renderKpis() {
+    var d = ASSETS.dollar, g = ASSETS.gold18, c = ASSETS.coin;
+    var html = '';
+    if (d.current && g.current) {
+      var ratio = g.current / d.current;
+      var prev = d.previous && g.previous ? (g.previous / d.previous) : null;
+      html += kpiCard('قیمت هر گرم طلای ۱۸ عیار به دلار', toFa(ratio.toFixed(1)), 'دلار',
+        prev ? (ratio / prev - 1) * 100 : null,
+        'قیمت طلای ۱۸ عیار تقسیم بر قیمت دلار. بالا رفتنش یعنی طلا از دلار قوی‌تر شده و برعکس.');
+    }
+    if (c.current && g.current) {
+      var intrinsic = 9.7596 * g.current; // سکه‌ی امامی: ۸٫۱۳۳ گرم با عیار ۹۰۰ معادل ۹٫۷۵۹۶ گرم طلای ۱۸ عیار
+      var bubble = c.current - intrinsic;
+      var prevB = c.previous && g.previous ? ((c.previous - 9.7596 * g.previous) / (9.7596 * g.previous)) * 100 : null;
+      var bp = (bubble / intrinsic) * 100;
+      html += kpiCard('حباب سکه‌ی امامی', pct(bp).replace('+', ''), '',
+        prevB != null ? bp - prevB : null,
+        'قیمت سکه منهای ارزش طلای داخل آن، یعنی حدود ' + formatNumber(Math.round(bubble)) + ' تومان. تقریبی؛ محاسبه: ۹٫۷۶ × قیمت هر گرم طلای ۱۸ عیار.');
+    }
+    $('kpis').innerHTML = html || '<div class="dash-empty">در حال دریافت قیمت‌ها...</div>';
+  }
+
+  /* ---------- ۴) نقشه‌ی حرارتی ---------- */
+  function tileColor(v) {
+    var a = Math.min(Math.abs(v) / 2.5, 1);
+    return v >= 0 ? 'rgba(34,165,90,' + (0.45 + a * 0.55) + ')' : 'rgba(224,68,62,' + (0.45 + a * 0.55) + ')';
+  }
+  function renderHeat() {
+    var html = '';
+    Object.keys(GROUP_TITLES).forEach(function (type) {
+      html += '<div class="heat-group">' + GROUP_TITLES[type] + '</div><div class="heat">';
+      ORDER[type].forEach(function (k) {
+        var a = ASSETS[k];
+        if (a.current == null || a.previous == null) { html += '<div class="tile na" data-k="' + k + '">' + a.name + '<b>—</b></div>'; return; }
+        var p = calculateChange(a.current, a.previous).percent;
+        html += '<div class="tile" data-k="' + k + '" style="background:' + tileColor(p) + '">' + a.name + '<b>' + pct(p) + '</b></div>';
+      });
+      html += '</div>';
+    });
+    $('heat').innerHTML = html;
+  }
+  $('heat').addEventListener('click', function (e) {
+    var t = e.target.closest('.tile');
+    if (t && !t.classList.contains('na')) openChart(t.dataset.k);
+  });
+
+  /* ---------- اجرا و به‌روزرسانی ---------- */
+  function renderAllDash() { renderRank(); renderCompare(); renderKpis(); renderHeat(); }
+  var baseRenderAll = renderAll;
+  renderAll = function () { baseRenderAll(); renderRank(); renderKpis(); renderHeat(); if (period === 'today') renderCompare(); };
+
+  renderPeriods();
+  renderAllDash();
+  loadHistory().then(function (h) { hist = h; renderRank(); renderCompare(); });
+  var rt = null;
+  window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(renderCompare, 150); });
+})();
+</script>
+</body>
+</html>
