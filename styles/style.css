@@ -599,3 +599,45 @@ body.chart-open { overflow: hidden; }
 @media (max-width: 600px) {
   .top-header h2 .brand img { height: 22px; }
 }
+
+/* ---------- ردیف تب‌ها زیر نوار بالا ---------- */
+.top-header {
+  justify-content: center;
+}
+.top-header h2 {
+  text-align: center;
+}
+.site-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: linear-gradient(45deg, #001421, #00254b);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.site-tabs a {
+  padding: 7px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #a9bdd3;
+  text-decoration: none;
+  border-radius: 999px;
+}
+.site-tabs a:hover { color: #fff; }
+.site-tabs a[aria-current="page"] {
+  color: #fff;
+  background: #186cd1;
+}
+.site-tabs a:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+@media (max-width: 400px) {
+  .site-tabs { gap: 2px; padding: 8px 6px; }
+  .site-tabs a { padding: 7px 12px; font-size: 13px; }
+}
+footer a {
+  color: #9fb3c8;
+  text-decoration: underline;
+}
