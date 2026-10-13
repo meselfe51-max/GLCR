@@ -146,11 +146,26 @@
   });
 
   /* ---------- ۱) بازده ---------- */
-  function insufficientMessage() {
-    if (!hist) return 'هنوز تاریخچه‌ای ذخیره نشده است. ربات از روزی که روشن می‌شود قیمت‌ها را جمع می‌کند.';
+  // پیام دقیق: بگوید مشکل از کجاست (فایل ربات نیست / نسخه‌ی قدیمی ربات / ربات متوقف شده / فقط داده‌ی کم)
+  function collectedText() {
     var d = maxCollectedDays();
-    return 'برای بازده ' + toFa(period) + ' روزه به ' + toFa(period) + ' روز داده نیاز است و تاکنون حدود ' +
-      toFa(Math.floor(d)) + ' روز جمع شده است. با گذشت زمان این بخش پر می‌شود؛ بازه‌ی «امروز» همین حالا کار می‌کند.';
+    if (d >= 1) return toFa(Math.floor(d)) + ' روز';
+    var h = Math.floor(d * 24);
+    return h >= 1 ? 'حدود ' + toFa(h) + ' ساعت' : 'کمتر از یک ساعت';
+  }
+  function botAgeText() {
+    var age = Math.floor(Date.now() / 1000) - (hist.updatedAt || 0);
+    return hist.updatedAt ? ' آخرین ذخیره‌ی ربات: ' + ageText(age) + '.' : '';
+  }
+  function insufficientMessage() {
+    if (!hist) return 'فایل تاریخچه‌ی ربات (data/history.json) پیدا نشد. ربات GitHub هنوز اجرا نشده یا فایل ساخته نشده است؛ تب Actions را بررسی کن.';
+    if (!hist.daily || !Object.keys(hist.daily).length) {
+      return 'فایل تاریخچه هست ولی بخش روزانه ندارد، یعنی نسخه‌ی قدیمی ربات (scripts/collect-prices.mjs) هنوز در GitHub است و باید نسخه‌ی جدید جایگزین شود.' + botAgeText();
+    }
+    var stale = hist.updatedAt && Date.now() / 1000 - hist.updatedAt > 3600;
+    return 'برای بازده ' + toFa(period) + ' روزه به ' + toFa(period) + ' روز داده نیاز است و تاکنون ' + collectedText() +
+      ' جمع شده است. با گذشت زمان این بخش پر می‌شود؛ بازه‌ی «امروز» همین حالا کار می‌کند.' + botAgeText() +
+      (stale ? ' ربات بیش از یک ساعت است ذخیره نکرده؛ اجراهای تب Actions را بررسی کن.' : '');
   }
   function rankRow(item, maxAbs) {
     var w = maxAbs ? (Math.abs(item.v) / maxAbs) * 50 : 0;
