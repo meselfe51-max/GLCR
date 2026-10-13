@@ -68,28 +68,66 @@ async function firstOk(urls, validate) {
   return null;
 }
 
+const startedAt = Math.floor(Date.now() / 1000);
 const prices = {};
+const meta = {}; // برای هر دارایی: { p: قیمت مبنا برای محاسبه‌ی تغییر، t: زمان واقعی قیمت }
+
+// همان منطق صفحه (price-page.js): مبنای تغییر از درصد/مقدار تغییر منبع
+function previousOf(item, current, divisor) {
+  const pct = Math.abs(num(item.dp));
+  const amount = Math.abs(num(item.d)) / divisor;
+  if (Number.isFinite(pct) && pct > 0 && item.dt === 'high') return current / (1 + pct / 100);
+  if (Number.isFinite(pct) && pct > 0 && pct < 100 && item.dt === 'low') return current / (1 - pct / 100);
+  if (Number.isFinite(amount) && amount > 0 && item.dt === 'high') return current - amount;
+  if (Number.isFinite(amount) && amount > 0 && item.dt === 'low') return current + amount;
+  if (pct === 0) return current;
+  return null;
+}
+// زمان قیمت در TGJU (به وقت تهران) → ثانیه‌ی یونیکس
+function tehranTs(ts) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(String(ts || ''));
+  if (!m) return null;
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000 - 12600;
+  return Number.isFinite(t) && t <= startedAt + 300 ? t : null;
+}
 
 const tgju = await firstOk(TGJU_URLS, j => j && j.current && typeof j.current === 'object');
 if (tgju) {
   for (const [asset, key] of Object.entries(TGJU_KEYS)) {
-    const rial = num(tgju.current[key] && tgju.current[key].p);
-    if (rial > 0) prices[asset] = rial / 10;
+    const item = tgju.current[key];
+    const rial = num(item && item.p);
+    if (rial > 0) {
+      prices[asset] = rial / 10;
+      meta[asset] = { p: previousOf(item, rial / 10, 10), t: tehranTs(item.ts) || startedAt };
+    }
   }
   for (const [asset, key] of Object.entries(TGJU_USD_KEYS)) {
-    const usd = num(tgju.current[key] && tgju.current[key].p);
-    if (usd > 0) prices[asset] = usd;
+    const item = tgju.current[key];
+    const usd = num(item && item.p);
+    if (usd > 0) {
+      prices[asset] = usd;
+      meta[asset] = { p: previousOf(item, usd, 1), t: tehranTs(item.ts) || startedAt };
+    }
   }
   const shibaUsd = num(tgju.current[SHIBA.usdKey] && tgju.current[SHIBA.usdKey].p);
   const tetherRial = num(tgju.current[SHIBA.rateKey] && tgju.current[SHIBA.rateKey].p);
-  if (shibaUsd > 0 && tetherRial > 0) prices.shiba = (shibaUsd * tetherRial * SHIBA.scale) / 10;
+  if (shibaUsd > 0 && tetherRial > 0) {
+    prices.shiba = (shibaUsd * tetherRial * SHIBA.scale) / 10;
+    const su = tgju.current[SHIBA.usdKey];
+    meta.shiba = { p: previousOf({ dp: su.dp, dt: su.dt }, prices.shiba, 10), t: tehranTs(su.ts) || startedAt };
+  }
 } else console.warn('TGJU در دسترس نبود.');
 
 const nobitex = await firstOk([NOBITEX_URL], j => j && j.stats && typeof j.stats === 'object');
 if (nobitex) {
   for (const [asset, code] of Object.entries(NOBITEX_KEYS)) {
-    const rial = num(nobitex.stats[code + '-rls'] && nobitex.stats[code + '-rls'].latest);
-    if (rial > 0) prices[asset] = rial / 10;
+    const st = nobitex.stats[code + '-rls'];
+    const rial = num(st && st.latest);
+    if (rial > 0) {
+      prices[asset] = rial / 10;
+      const dc = num(st.dayChange);
+      meta[asset] = { p: Number.isFinite(dc) && dc > -100 ? rial / 10 / (1 + dc / 100) : null, t: startedAt };
+    }
   }
 } else console.warn('نوبیتکس در دسترس نبود.');
 
@@ -121,6 +159,14 @@ for (const [asset, price] of Object.entries(prices)) {
   if (arr.length && tehranDay(arr[arr.length - 1][0]) === today) arr[arr.length - 1] = [now, rounded];
   else arr.push([now, rounded]);
   history.daily[asset] = arr;
+}
+
+// آخرین قیمت هر دارایی (برای نمایش پشتیبان در سایت وقتی منبع زنده از مرورگر در دسترس نیست)
+if (!history.latest || typeof history.latest !== 'object') history.latest = {};
+for (const [asset, price] of Object.entries(prices)) {
+  const m = meta[asset] || { p: null, t: startedAt };
+  const r2 = v => Math.round(v * 100) / 100;
+  history.latest[asset] = [r2(price), Number.isFinite(m.p) ? r2(m.p) : null, m.t];
 }
 
 console.log(`قیمت ${added} دارایی ثبت شد.`);
