@@ -230,28 +230,6 @@ function getCurrentAsset() {
   return ASSETS.dollar;
 }
 
-function ageText(sec) {
-  const m = Math.floor(sec / 60);
-  if (m < 1) return 'چند لحظه پیش';
-  if (m < 60) return `${toFa(m)} دقیقه پیش`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${toFa(h)} ساعت پیش`;
-  return `${toFa(Math.floor(h / 24))} روز پیش`;
-}
-
-// متن وضعیت: زمان واقعی قیمت در منبع (نه فقط لحظه‌ای که سایت آن را گرفته)
-function freshnessText(asset) {
-  const t = asset.dataTime;
-  if (!t) return asset.updatedAt ? `آخرین بروزرسانی: ${asset.updatedAt}` : '';
-  const age = Math.floor(Date.now() / 1000) - t;
-  if (age < 600) {
-    let clock;
-    try { clock = new Date(t * 1000).toLocaleTimeString('fa-IR', { timeZone: 'Asia/Tehran', hour12: false }); } catch (e) { clock = asset.updatedAt; }
-    return `آخرین بروزرسانی: ${clock}`;
-  }
-  return `آخرین تغییر قیمت در منبع: ${ageText(age)}`;
-}
-
 function renderCurrentAsset() {
   const asset = getCurrentAsset();
   const priceElement = document.getElementById('asset-price');
@@ -279,13 +257,10 @@ function renderCurrentAsset() {
   if (statusElement) {
     if (asset.status === 'live') {
       statusElement.className = 'status-bar status-live';
-      statusElement.textContent = freshnessText(asset);
+      statusElement.textContent = asset.updatedAt ? `آخرین بروزرسانی: ${asset.updatedAt}` : '';
     } else if (asset.status === 'cached') {
       statusElement.className = 'status-bar status-cached';
       statusElement.textContent = 'در حال دریافت قیمت تازه... (این عدد آخرین قیمت شناخته‌شده است)';
-    } else if (asset.status === 'bot') {
-      statusElement.className = 'status-bar status-cached';
-      statusElement.textContent = `منبع زنده در دسترس نیست؛ آخرین قیمت ذخیره‌شده (${asset.dataTime ? ageText(Math.floor(Date.now() / 1000) - asset.dataTime) : 'چند دقیقه پیش'}) نمایش داده می‌شود و هر ۱۵ ثانیه دوباره تلاش می‌کنیم.`;
     } else if (asset.status === 'stale') {
       statusElement.className = 'status-bar status-cached';
       statusElement.textContent = 'دریافت قیمت تازه ممکن نشد؛ آخرین قیمت ذخیره‌شده نمایش داده می‌شود و هر ۱۵ ثانیه دوباره تلاش می‌کنیم.';
@@ -345,8 +320,7 @@ function saveCache() {
       if (asset.status === 'live' && Number.isFinite(asset.current)) {
         data[key] = {
           current: asset.current,
-          previous: Number.isFinite(asset.previous) ? asset.previous : null,
-          t: Number.isFinite(asset.dataTime) ? asset.dataTime : null
+          previous: Number.isFinite(asset.previous) ? asset.previous : null
         };
       }
     }
@@ -367,7 +341,6 @@ function hydrateFromCache() {
     if (cached && Number.isFinite(cached.current)) {
       ASSETS[key].current = cached.current;
       ASSETS[key].previous = Number.isFinite(cached.previous) ? cached.previous : null;
-      ASSETS[key].dataTime = Number.isFinite(cached.t) ? cached.t : null;
       ASSETS[key].status = 'cached';
     }
   }
@@ -603,14 +576,6 @@ const TGJU_DERIVED = {
 };
 
 // تبدیل یک آیتم خام TGJU به {current, previous}. divisor = ۱۰ برای ریال→تومان، ۱ برای قیمت‌های دلاری.
-// زمان واقعی قیمت در TGJU (فیلد ts، به وقت تهران UTC+3:30) → ثانیه‌ی یونیکس
-function parseTgjuTime(ts) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(String(ts || ''));
-  if (!m) return null;
-  const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) / 1000 - 12600;
-  return Number.isFinite(t) && t <= Date.now() / 1000 + 300 ? t : null;
-}
-
 function itemFromRaw(item, divisor) {
   {
     const raw = parseLiveNumber(item.p);
@@ -625,7 +590,7 @@ function itemFromRaw(item, divisor) {
     else if (Number.isFinite(amount) && amount > 0 && item.dt === 'high') previous = current - amount;
     else if (Number.isFinite(amount) && amount > 0 && item.dt === 'low') previous = current + amount;
     else if (pct === 0) previous = current;
-    return { current, previous, time: parseTgjuTime(item.ts) };
+    return { current, previous };
   }
 }
 
@@ -648,7 +613,7 @@ function readTgjuDerived(feedCurrent, def) {
   const rate = parseLiveNumber(rateItem.p); // ریال به‌ازای هر تتر
   if (!Number.isFinite(usd) || usd <= 0 || !Number.isFinite(rate) || rate <= 0) return null;
   // درصد/جهت تغییر از همان قیمت دلاری می‌آید؛ مقدار تغییر دلاری به ریال قابل‌استفاده نیست، پس حذف می‌شود.
-  const raw = { p: usd * rate * def.scale, dp: usdItem.dp, dt: usdItem.dt, ts: usdItem.ts };
+  const raw = { p: usd * rate * def.scale, dp: usdItem.dp, dt: usdItem.dt };
   return itemFromRaw(raw, 10);
 }
 
@@ -658,21 +623,22 @@ function applyItem(assetKey, item, timeLabel) {
   ASSETS[assetKey].previous = Number.isFinite(item.previous) ? item.previous : null;
   ASSETS[assetKey].status = 'live';
   ASSETS[assetKey].updatedAt = timeLabel;
-  ASSETS[assetKey].dataTime = Number.isFinite(item.time) ? item.time : Math.floor(Date.now() / 1000);
   return true;
 }
 
+// خروجی: true اگر خود دریافت از منبع موفق بود، false اگر کل دریافت شکست خورد.
+// (پیدا نشدن یک کلید خاص در فید، «شکست دریافت» حساب نمی‌شود.)
 async function updateFiatAndMetalsFromTgju() {
   const keys = Object.keys(TGJU_KEYS).concat(Object.keys(TGJU_DERIVED));
   const updatedKeys = new Set();
-  let sourceOk = false;
+  let fetchOk = false;
   try {
     const feed = await fetchJsonFromTargets(
       'TGJU',
       TGJU_TARGETS,
       json => json && json.current && typeof json.current === 'object'
     );
-    sourceOk = true;
+    fetchOk = true;
     const now = tehranTimeLabel();
     const missing = [];
     for (const assetKey of keys) {
@@ -697,7 +663,7 @@ async function updateFiatAndMetalsFromTgju() {
   } finally {
     markNotUpdated(keys, updatedKeys);
   }
-  return sourceOk;
+  return fetchOk;
 }
 
 /* ---------------------------------------------------------------------
@@ -737,17 +703,18 @@ function readNobitexItem(stat) {
   return { current, previous };
 }
 
+// خروجی: true اگر خود دریافت از نوبیتکس موفق بود، false اگر شکست خورد.
 async function updateCryptoFromNobitex() {
   const keys = Object.keys(NOBITEX_KEYS);
   const updatedKeys = new Set();
-  let sourceOk = false;
+  let fetchOk = false;
   try {
     const payload = await fetchJsonFromTargets(
       'Nobitex',
       NOBITEX_TARGETS,
       json => json && json.stats && typeof json.stats === 'object'
     );
-    sourceOk = true;
+    fetchOk = true;
     const now = tehranTimeLabel();
     for (const [assetKey, code] of Object.entries(NOBITEX_KEYS)) {
       const item = readNobitexItem(payload.stats[`${code}-rls`]);
@@ -760,54 +727,48 @@ async function updateCryptoFromNobitex() {
   } finally {
     markNotUpdated(keys, updatedKeys);
   }
-  return sourceOk;
+  return fetchOk;
 }
 
+/* ---------------------------------------------------------------------
+   دریافت دوره‌ای قیمت:
+   - چرخه‌ی عادی: هر ۶۰ ثانیه (setInterval انتهای فایل).
+   - اگر دریافت از یک منبع شکست بخورد: هر ۱۵ ثانیه دوباره تلاش می‌شود
+     تا وقتی موفق شود. در این مدت آخرین قیمت دریافت‌شده (کش) نمایش داده می‌شود.
+--------------------------------------------------------------------- */
+const RETRY_AFTER_FAIL_MS = 15 * 1000;
+let retryTimer = null;
 let isUpdating = false;
-let sourceFailed = { tgju: false, nobitex: false };
-const sourceOkAt = { tgju: 0, nobitex: 0 }; // آخرین موفقیت هر منبع؛ تا منبع سالم در دوره‌ی تلاش مجدد کهنه نشود
 
-// وقتی منبع زنده در دسترس نیست: آخرین قیمتی که ربات GitHub ذخیره کرده (حداکثر چند دقیقه قدیمی).
-// فقط جایگزین عددی می‌شود که از آن قدیمی‌تر نیست، پس قیمت زنده را هرگز با قیمت کهنه‌تر عوض نمی‌کند.
-async function applyBotFallback(keys) {
-  const history = await loadHistory();
-  const latest = history && history.latest;
-  if (!latest) return;
-  for (const key of keys) {
-    const entry = latest[key];
-    if (!Array.isArray(entry) || !Number.isFinite(entry[0]) || entry[0] <= 0) continue;
-    const asset = ASSETS[key];
-    const t = Number(entry[2]) || 0;
-    if (asset.current == null || t >= (asset.dataTime || 0)) {
-      asset.current = entry[0];
-      asset.previous = Number.isFinite(entry[1]) ? entry[1] : null;
-      asset.dataTime = t || null;
-      asset.status = 'bot';
+function scheduleRetry() {
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(function () {
+    // وقتی تب در پس‌زمینه است درخواست نفرست؛ بعداً دوباره بررسی می‌کنیم
+    if (typeof document.hidden !== 'undefined' && document.hidden) {
+      scheduleRetry();
+      return;
     }
-  }
+    updateFromAPI();
+  }, RETRY_AFTER_FAIL_MS);
 }
 
-// برمی‌گرداند true اگر همه‌ی منبع‌ها جواب دادند؛ false اگر دست‌کم یکی شکست خورد؛ undefined اگر دور قبلی هنوز در جریان است
-async function updateFromAPI(onlyFailed) {
-  if (isUpdating) return undefined; // از هم‌پوشانی دورها جلوگیری می‌کنیم
+async function updateFromAPI() {
+  if (isUpdating) return; // از هم‌پوشانی دورها جلوگیری می‌کنیم
   isUpdating = true;
+  let anyFetchFailed = false;
   try {
-    const due = name => !onlyFailed || sourceFailed[name] || Date.now() - sourceOkAt[name] >= UPDATE_OK_MS - 2000;
-    const tasks = [];
-    if (due('tgju')) tasks.push(updateFiatAndMetalsFromTgju().then(ok => { sourceFailed.tgju = !ok; if (ok) sourceOkAt.tgju = Date.now(); }, () => { sourceFailed.tgju = true; }));
-    if (due('nobitex')) tasks.push(updateCryptoFromNobitex().then(ok => { sourceFailed.nobitex = !ok; if (ok) sourceOkAt.nobitex = Date.now(); }, () => { sourceFailed.nobitex = true; }));
-    await Promise.all(tasks);
-
-    // هر دارایی که این دور زنده نشد، سعی می‌کنیم از قیمت ذخیره‌شده‌ی ربات پر شود
-    const notLive = Object.keys(ASSETS).filter(k => ASSETS[k].status !== 'live');
-    if (notLive.length && (sourceFailed.tgju || sourceFailed.nobitex)) {
-      try { await applyBotFallback(notLive); } catch (e) { /* پشتیبان در دسترس نبود */ }
-    }
+    const results = await Promise.allSettled([
+      updateFiatAndMetalsFromTgju(),
+      updateCryptoFromNobitex()
+    ]);
+    anyFetchFailed = results.some(r => r.status === 'rejected' || r.value === false);
     renderAll();
-    return !(sourceFailed.tgju || sourceFailed.nobitex);
   } finally {
     isUpdating = false;
   }
+
+  clearTimeout(retryTimer);
+  if (anyFetchFailed) scheduleRetry();
 }
 
 /* ---------------------------------------------------------------------
@@ -1216,47 +1177,13 @@ function startHeaderRotation() {
   }, HEADER_ROTATION_MS);
 }
 
-/* ---------------------------------------------------------------------
-   زمان‌بندی دریافت قیمت: وقتی همه‌چیز خوب است هر ۶۰ ثانیه؛ اگر دریافت از هر منبعی شکست خورد،
-   هر ۱۵ ثانیه فقط همان منبع را دوباره امتحان می‌کند. با باز شدن تب یا وصل شدن اینترنت هم فوراً تلاش می‌کند.
---------------------------------------------------------------------- */
-const UPDATE_OK_MS = 60 * 1000;
-const UPDATE_RETRY_MS = 15 * 1000;
-let updateTimer = null;
-let lastUpdateAttempt = 0;
-
-function scheduleUpdate(delay) {
-  if (typeof setTimeout !== 'function') return;
-  clearTimeout(updateTimer);
-  updateTimer = setTimeout(runScheduledUpdate, delay);
-}
-
-async function runScheduledUpdate() {
-  // وقتی تب در پس‌زمینه است درخواست نفرست
-  if (typeof document.hidden !== 'undefined' && document.hidden) { scheduleUpdate(UPDATE_OK_MS); return; }
-  lastUpdateAttempt = Date.now();
-  let result;
-  try {
-    result = await updateFromAPI(sourceFailed.tgju || sourceFailed.nobitex);
-  } catch (error) {
-    result = false;
-  }
-  scheduleUpdate(result === true ? UPDATE_OK_MS : UPDATE_RETRY_MS);
-}
-
-function refreshNow() {
-  if (Date.now() - lastUpdateAttempt < 5000) return;
-  runScheduledUpdate();
-}
-if (typeof document.addEventListener === 'function') {
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) refreshNow(); });
-}
-if (typeof window.addEventListener === 'function') {
-  window.addEventListener('online', refreshNow);
-}
-
 hydrateFromCache();
 renderAll();
-runScheduledUpdate();
+updateFromAPI();
 startHeaderRotation();
 initChartClicks();
+setInterval(() => {
+  // وقتی تب در پس‌زمینه است درخواست نفرست
+  if (typeof document.hidden !== 'undefined' && document.hidden) return;
+  updateFromAPI();
+}, 60 * 1000);
