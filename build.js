@@ -28,7 +28,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const DEFAULT_SITE_URL = 'https://YOUR-DOMAIN.com';
+// آدرس واقعی سایت. تا وقتی دامنه‌ی اختصاصی نگرفته‌ای همان آدرس GitHub Pages است؛ بعد از گرفتن دامنه فقط همین یک خط عوض می‌شود.
+const DEFAULT_SITE_URL = 'https://meselfe51-max.github.io/GLCR';
 const SITE_URL = (process.env.SITE_URL || DEFAULT_SITE_URL).replace(/\/+$/, '');
 if (SITE_URL.includes('YOUR-DOMAIN')) {
   console.warn('⚠️  دامنه‌ی واقعی تنظیم نشده؛ canonical و sitemap با YOUR-DOMAIN.com ساخته می‌شوند.');
@@ -88,7 +89,7 @@ function prefixUrls(html, prefix) {
 }
 
 function fillTables(html) {
-  const map = { currency: 'currencies-body', metal: 'metals-body', crypto: 'crypto-body' };
+  const map = { currency: 'currencies-body', metal: 'metals-body', energy: 'energy-body', crypto: 'crypto-body' };
   for (const [type, id] of Object.entries(map)) {
     const rows = ORDER[type].map(key => renderRow(ASSETS[key])).join('');
     const re = new RegExp(`(<tbody\\b[^>]*\\bid="${id}"[^>]*>)[\\s\\S]*?(</tbody>)`);
@@ -105,7 +106,9 @@ function jsonLd(obj) {
 function seoTags({ title, description, urlPath, structured, prefix = '' }) {
   const url = SITE_URL + urlPath;
   return [
-    `<link rel="icon" href="${prefix}images/favicon.svg" type="image/svg+xml">`,
+    `<link rel="icon" href="${prefix}images/favicon.ico" sizes="48x48">`,
+    `<link rel="icon" href="${prefix}images/favicon-32.png" type="image/png" sizes="32x32">`,
+    `<link rel="apple-touch-icon" href="${prefix}images/apple-touch-icon.png">`,
     '<meta name="robots" content="index, follow, max-image-preview:large">',
     `<link rel="canonical" href="${url}">`,
     '<meta name="theme-color" content="#001421">',
@@ -165,7 +168,7 @@ function buildAsset(asset) {
   const urlPath = `/currency/${asset.slug}/`;
   const meta = {
     title: `قیمت لحظه‌ای ${asset.title.replace(/^قیمت\s+/, '')} | ${SITE_NAME}`,
-    description: `قیمت لحظه‌ای ${asset.title.replace(/^قیمت\s+/, '')} امروز به تومان با درصد و مقدار تغییر نسبت به روز قبل؛ مقایسه سریع با سایر ارزها، طلا، سکه و ارزهای دیجیتال در ${SITE_NAME}.`,
+    description: `قیمت لحظه‌ای ${asset.title.replace(/^قیمت\s+/, '')} امروز ${asset.unit === 'usd' ? 'به دلار' : 'به تومان'} با درصد و مقدار تغییر نسبت به روز قبل؛ مقایسه سریع با سایر ارزها، طلا، سکه و ارزهای دیجیتال در ${SITE_NAME}.`,
     urlPath,
     prefix,
     structured: breadcrumb(asset.title, urlPath)
@@ -201,31 +204,49 @@ for (const key of Object.keys(ASSETS)) {
   console.log(`✔ currency/${asset.slug}/index.html`);
 }
 
-// ---------- ۴) بخش سئوی ماشین‌حساب (title/description همان‌هایی‌اند که در خود فایل نوشته‌ای) ----------
-{
-  let html = fs.readFileSync(CALC_PATH, 'utf8');
+// ---------- ۴) بخش سئوی صفحه‌های دستی (ماشین‌حساب و داشبورد): title/description همان‌هایی‌اند که در خود فایل نوشته‌ای ----------
+for (const page of [
+  { file: CALC_PATH, url: '/calculator/', crumb: 'ماشین حساب', label: 'calculator/index.html' },
+  { file: path.join(ROOT, 'dashboard', 'index.html'), url: '/dashboard/', crumb: 'داشبورد بازار', label: 'dashboard/index.html' }
+]) {
+  let html = fs.readFileSync(page.file, 'utf8');
   const title = (html.match(/<title[^>]*>([\s\S]*?)<\/title>/) || [])[1];
   const description = (html.match(/<meta\s+name="description"\s+content="([^"]*)"/) || [])[1];
-  if (!title || !description) throw new Error('title/description در calculator/index.html پیدا نشد');
+  if (!title || !description) throw new Error(`title/description در ${page.label} پیدا نشد`);
   const block = '<!--seo:start-->\n' + seoTags({
-    title: title.trim(), description, urlPath: '/calculator/', prefix: '../', structured: breadcrumb('ماشین حساب', '/calculator/')
+    title: title.trim(), description, urlPath: page.url, prefix: '../', structured: breadcrumb(page.crumb, page.url)
   }) + '\n<!--seo:end-->';
-  html = mustReplace(html, /<!--seo:start-->[\s\S]*?<!--seo:end-->/, () => block, 'seo markers in calculator');
-  fs.writeFileSync(CALC_PATH, html, 'utf8');
-  console.log('✔ calculator/index.html (فقط بخش سئوی head)');
+  html = mustReplace(html, /<!--seo:start-->[\s\S]*?<!--seo:end-->/, () => block, `seo markers in ${page.label}`);
+  fs.writeFileSync(page.file, html, 'utf8');
+  console.log(`✔ ${page.label} (فقط بخش سئوی head)`);
 }
 
 // ---------- ۵) sitemap.xml و robots.txt ----------
-const urls = ['/', '/calculator/'].concat(Object.keys(ASSETS).map(k => `/currency/${ASSETS[k].slug}/`));
+// قواعد: فقط آدرس‌های قابل‌نمایه (۲۰۰ و بدون noindex)، همه مطلق و دقیقاً مثل canonical هر صفحه (با / پایانی)،
+// بدون صفحه‌ی نمونه‌ی قالب. changefreq و priority عمداً نیستند چون گوگل نادیده‌شان می‌گیرد.
+const BUILD_DATE = new Date().toISOString().slice(0, 10); // تاریخ آخرین ساخت سایت (UTC)
+const xmlEscape = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+const assetUrls = [];
+for (const type of ['currency', 'metal', 'energy', 'crypto']) {
+  for (const key of ORDER[type] || []) assetUrls.push(`/currency/${ASSETS[key].slug}/`);
+}
+const urls = ['/', '/dashboard/', '/calculator/'].concat(assetUrls);
+if (new Set(urls).size !== urls.length) throw new Error('آدرس تکراری در sitemap');
+for (const u of urls) {
+  const file = path.join(ROOT, u === '/' ? 'index.html' : u.slice(1) + 'index.html');
+  if (!fs.existsSync(file)) throw new Error(`فایل صفحه برای ${u} پیدا نشد (${file})`);
+}
 fs.writeFileSync(
   path.join(ROOT, 'sitemap.xml'),
   '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    urls.map(u => `  <url><loc>${SITE_URL}${u}</loc></url>`).join('\n') + '\n</urlset>\n',
+    urls.map(u => `  <url>\n    <loc>${xmlEscape(SITE_URL + u)}</loc>\n    <lastmod>${BUILD_DATE}</lastmod>\n  </url>`).join('\n') + '\n</urlset>\n',
   'utf8'
 );
+// اگر سایت زیرمسیر دارد (مثل github.io/GLCR) مسیر Disallow هم باید همان زیرمسیر را داشته باشد
+const basePath = new URL(SITE_URL).pathname.replace(/\/+$/, '');
 fs.writeFileSync(
   path.join(ROOT, 'robots.txt'),
-  `User-agent: *\nAllow: /\nDisallow: /price-page-sample.html\n\nSitemap: ${SITE_URL}/sitemap.xml\n`,
+  `User-agent: *\nAllow: /\nDisallow: ${basePath}/price-page-sample.html\n\nSitemap: ${SITE_URL}/sitemap.xml\n`,
   'utf8'
 );
 console.log('✔ sitemap.xml, robots.txt');
