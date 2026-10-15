@@ -1,5 +1,5 @@
 User-agent: *
 Allow: /
-Disallow: /price-page-sample.html
+Disallow: /GLCR/price-page-sample.html
 
-Sitemap: https://YOUR-DOMAIN.com/sitemap.xml
+Sitemap: https://meselfe51-max.github.io/GLCR/sitemap.xml
