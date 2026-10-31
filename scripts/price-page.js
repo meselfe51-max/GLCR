@@ -260,10 +260,10 @@ function renderCurrentAsset() {
       statusElement.textContent = asset.updatedAt ? `آخرین بروزرسانی: ${asset.updatedAt}` : '';
     } else if (asset.status === 'cached') {
       statusElement.className = 'status-bar status-cached';
-      statusElement.textContent = 'آخرین قیمت';
+      statusElement.textContent = 'در حال دریافت قیمت تازه... (این عدد آخرین قیمت شناخته‌شده است)';
     } else if (asset.status === 'stale') {
       statusElement.className = 'status-bar status-cached';
-      statusElement.textContent = 'دریافت قیمت تازه ممکن نشد؛ آخرین قیمت ذخیره‌شده نمایش داده می‌شود و هر ۱۵ ثانیه دوباره تلاش می‌کنیم.';
+      statusElement.textContent = 'آخرین قیمت های دریافتی از بازار';
     } else if (asset.status === 'error') {
       statusElement.className = 'status-bar status-error';
       statusElement.textContent = 'اتصال به سرور قیمت برقرار نشد؛ هر ۱۵ ثانیه دوباره تلاش می‌کنیم.';
