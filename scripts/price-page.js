@@ -260,7 +260,7 @@ function renderCurrentAsset() {
       statusElement.textContent = asset.updatedAt ? `آخرین بروزرسانی: ${asset.updatedAt}` : '';
     } else if (asset.status === 'cached') {
       statusElement.className = 'status-bar status-cached';
-      statusElement.textContent = 'در حال دریافت قیمت تازه... (این عدد آخرین قیمت شناخته‌شده است)';
+      statusElement.textContent = 'آخرین قیمت';
     } else if (asset.status === 'stale') {
       statusElement.className = 'status-bar status-cached';
       statusElement.textContent = 'دریافت قیمت تازه ممکن نشد؛ آخرین قیمت ذخیره‌شده نمایش داده می‌شود و هر ۱۵ ثانیه دوباره تلاش می‌کنیم.';
