@@ -286,15 +286,16 @@ footer {
 .status-bar:not(:empty) {
   display: block;
   margin: 16px auto;
+  width: calc(100% - 32px);
 }
 .status-bar.status-loading {
   background: #eef1f4;
   color: #55606b;
 }
 .status-bar.status-cached {
-  background: #fff6e6;
-  color: #8a5b00;
-  border: 1px solid #ffe1a3;
+  background: #ffffff;
+  color: #928b8b;
+  border: 1px solid #d8d8d8;
 }
 .status-bar.status-error {
   background: #fdecea;
